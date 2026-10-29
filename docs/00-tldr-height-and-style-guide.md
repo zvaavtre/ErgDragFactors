@@ -11,7 +11,7 @@ Your height and limb lengths determine the distance the handle travels (`Drive L
 <a id="tall-rowers"></a>
 ### Tall Rowers (6'2"+ / 188 cm+)
 * **Typical Drive Length:** **1.45 – 1.60 m** ([Stroke Length Model](01-drag-factor-vs-stroke-length.md#2-the-biomechanical-model-kleshnevs-handle-drag-factor-hdf))
-* **Target Drag Factor:** **125 – 138** *(Damper ~4.5 – 5.5)* ([Mikulić et al., 2017](03-references-and-literature.md#mikulic-et-al-2017-optimal-drag-factor-for-2000m-rowing-ergometer-performance))
+* **Target Drag Factor:** **125 – 138** *(Damper ~4.5 – 5.5)* ([Cerasola et al., 2017](03-references-and-literature.md#cerasola-et-al-2017-drag-factor-on-rowing-ergometer-during-2000-m-performance); [Kleshnev & Dinares](03-references-and-literature.md#valery-kleshnev-and-carlos-dinares-on-water-vs-ergometer-drag-factors))
 * **Base 2k Rate:** **30 – 34 spm** ([Rate & Pacing Model](02-fatigue-rate-and-catch-slip.md#3-the-optimal-2000m-rate-vs-slip-pacing-model))
 * **Mechanical Advantage:** High work per stroke ($W = \bar{F} \cdot L$; see [Kleshnev HDF](03-references-and-literature.md#valery-kleshnev-biorow-handle-drag-factor)). Because the handle travels over a longer path, you can produce high wattage without needing an extreme stroke rate.
 * **Common Failure Mode:** Setting the drag factor too low (< 115) or rating too high too early. Moving a larger body mass back and forth on the slide 36+ times per minute carries a high internal metabolic cost before any force is even applied to the handle.
@@ -20,7 +20,7 @@ Your height and limb lengths determine the distance the handle travels (`Drive L
 <a id="medium-height-rowers"></a>
 ### Medium-Height Rowers (5'9"–6'1" / 175–185 cm)
 * **Typical Drive Length:** **1.30 – 1.45 m** ([Stroke Length Model](01-drag-factor-vs-stroke-length.md#2-the-biomechanical-model-kleshnevs-handle-drag-factor-hdf))
-* **Target Drag Factor:** **115 – 128** *(Damper ~3.5 – 4.5)* ([Mikulić et al., 2017](03-references-and-literature.md#mikulic-et-al-2017-optimal-drag-factor-for-2000m-rowing-ergometer-performance))
+* **Target Drag Factor:** **115 – 128** *(Damper ~3.5 – 4.5)* ([Cerasola et al., 2017](03-references-and-literature.md#cerasola-et-al-2017-drag-factor-on-rowing-ergometer-during-2000-m-performance); [Kleshnev & Dinares](03-references-and-literature.md#valery-kleshnev-and-carlos-dinares-on-water-vs-ergometer-drag-factors))
 * **Base 2k Rate:** **33 – 36 spm** ([Rate & Pacing Model](02-fatigue-rate-and-catch-slip.md#3-the-optimal-2000m-rate-vs-slip-pacing-model))
 * **Mechanical Advantage:** Balanced trade-off between work per stroke and slide mass. You can shift between higher force per stroke and higher turnover without the severe slide-inertia penalty of taller rowers.
 * **Common Failure Mode:** Reaching beyond your active hip and ankle mobility (forcing extra handle travel by rounding the lumbar spine or dropping the shoulders after the pelvis has stopped rotating; see [Soper & Hume, 2004](03-references-and-literature.md#soper-and-hume-2004-towards-an-ideal-rowing-technique-for-performance)). Deep compression at the catch is effective on a stationary erg if your ankle dorsiflexion and hip flexion support it, but exceeding your active range of motion eliminates your stretch reflex and delays handle acceleration ($a_{\text{catch}}$).
@@ -32,14 +32,14 @@ Your height and limb lengths determine the distance the handle travels (`Drive L
 * **Target Drag Factor:** **105 – 118** *(Damper ~3.0 – 4.0)* ([Kleshnev & Dinares](03-references-and-literature.md#valery-kleshnev-and-carlos-dinares-on-water-vs-ergometer-drag-factors))
 * **Base 2k Rate:** **35 – 40 spm** ([Rate & Pacing Model](02-fatigue-rate-and-catch-slip.md#3-the-optimal-2000m-rate-vs-slip-pacing-model))
 * **Mechanical Advantage:** Lower slide inertia and faster turnaround times. You can sustain higher stroke rates at a much lower internal energy cost than taller rowers.
-* **Common Failure Mode:** **Setting the damper high (6–10) to compensate for a shorter stroke.** Because your drive length ($L$) is shorter, producing the same work per stroke at a high drag factor requires disproportionately high peak force at the catch, leading to rapid localized muscular fatigue in the quads and lower back before the 1,000m mark ([Kane et al., 2008](03-references-and-literature.md#kane-et-al-2008-effects-of-drag-factor-on-physiological-aspects-of-rowing); [Soper & Hume, 2004](03-references-and-literature.md#soper-and-hume-2004-towards-an-ideal-rowing-technique-for-performance)).
+* **Common Failure Mode:** **Setting the damper high (6–10) to compensate for a shorter stroke.** Because your drive length ($L$) is shorter, producing the same work per stroke at a high drag factor requires disproportionately high peak force at the catch, leading to rapid localized muscular fatigue in the quads and lower back before the 1,000m mark ([Kane et al., 2008](03-references-and-literature.md#kane-et-al-2008--2013-effects-of-drag-factor-and-stroke-resistance-on-rowing-physiology--economy); [Soper & Hume, 2004](03-references-and-literature.md#soper-and-hume-2004-towards-an-ideal-rowing-technique-for-performance)).
 * **Adjustment Under Fatigue (1,000m–1,500m):** Rely on cadence rather than heavy resistance. Keep the drag factor lower (105–115), maintain posture at the catch, and keep the handle moving continuously through the transitions at both ends of the stroke.
 
 ---
 
 ## 2. Adjustments by Physiology (Aerobic vs. Force-Dominant)
 
-Rowers of the same height often differ in muscle fiber composition and aerobic capacity ([Ingham et al., 2002](03-references-and-literature.md#ingham-et-al-2002-determinants-of-2000m-rowing-ergometer-performance); [Kane et al., 2008](03-references-and-literature.md#kane-et-al-2008-effects-of-drag-factor-on-physiological-aspects-of-rowing)):
+Rowers of the same height often differ in muscle fiber composition and aerobic capacity ([Ingham et al., 2002](03-references-and-literature.md#ingham-et-al-2002-determinants-of-2000m-rowing-ergometer-performance); [Kane et al., 2008](03-references-and-literature.md#kane-et-al-2008--2013-effects-of-drag-factor-and-stroke-resistance-on-rowing-physiology--economy)):
 
 | Parameter | **Aerobic / Turnover-Dominant** (High VO₂max relative to peak force) | **Force / Strength-Dominant** (High peak force and anaerobic capacity) |
 | :--- | :--- | :--- |
@@ -57,6 +57,22 @@ Rowers of the same height often differ in muscle fiber composition and aerobic c
 2. **Raising the Rate in the Final Sprint (Last 350m):**
    When peak force declines at the end of the piece, raising the stroke rate (+3 to 6 spm) keeps the flywheel spinning fast so less torque is required per stroke. Because $\omega_{\text{min}}$ is higher at 38+ spm, avoid pausing at full compression—use the stretch reflex to reverse direction immediately, or reduce compression by 1–2 cm if fatigue is slowing down your turnaround at the front end.
 3. **Active Compression vs. Unloaded Reach:**
-   Deep compression on an ergometer increases effective work per stroke **if** your hip and ankle mobility allow you to maintain pelvic position and rebound quickly. Reaching beyond your active flexibility by flexing the lumbar spine ([Soper & Hume, 2004](03-references-and-literature.md#soper-and-hume-2004-towards-an-ideal-rowing-technique-for-performance)) adds unloaded handle travel ($L_{\text{slip}}$; [Kleshnev, 2016](03-references-and-literature.md#valery-kleshnev-the-biomechanics-of-rowing-2016)) where force is too low to accelerate the flywheel.
+   Deep compression on an ergometer increases effective work per stroke **if** your hip and ankle mobility allow you to maintain pelvic position and rebound quickly. Reaching beyond your active flexibility by flexing the lumbar spine ([Soper & Hume, 2004](03-references-and-literature.md#soper-and-hume-2004-towards-an-ideal-rowing-technique-for-performance)) adds unloaded handle travel ($L_{\text{slip}}$; [Kleshnev, 2016](03-references-and-literature.md#valery-kleshnev-the-biomechanics-of-rowing-2016--2020)) where force is too low to accelerate the flywheel.
 4. **Monitoring `Drive Length` in ErgData:**
    If your logged `Drive Length` ([Concept2 ErgData](03-references-and-literature.md#concept2-ergdata-stroke-metrics-drive-length-drive-time-force)) drops by more than **5 cm** between the first 500m and third 500m, either your drag factor is too high (causing premature muscular fatigue and shortened strokes) or you are rushing the recovery and losing engagement at the catch.
+
+---
+
+## 4. Competition & Testing Rules: Open Regattas vs. National Federation Protocols
+
+A common misconception is that indoor championships like the **C.R.A.S.H.-B. Sprints** require a 130–140 drag factor. In practice, rules differ between **open indoor regattas** and **national team / collegiate testing protocols**:
+
+* **C.R.A.S.H.-B. Sprints & World Rowing Indoor Championships (WRIC):**
+  * **No Mandated Drag Factor Range:** Competitors are permitted to set the damper/drag factor to **any value they choose** during warm-up and marshalling prior to the start ([C.R.A.S.H.-B. Official FAQ & Rules](03-references-and-literature.md#crash-b-sprints-official-drag-factor-faq--the-charley-butt-rule)).
+  * **The "Charley Butt Rule" (Locked Once Racing Starts):** While any pre-race drag factor is legal, **adjusting the damper lever after the race has started is strictly prohibited** and results in immediate disqualification.
+* **National Federation & Collegiate Selection Testing (Where 125–140 / 130 Mandates Come From):**
+  * National governing bodies mandate specific PM5 drag factors for official 2,000m / 5,000m ergometer trials so that athlete scores are standardized ([National Federation Protocols](03-references-and-literature.md#national-federation-2000m-testing-protocols-where-mandated-125140--130-standards-originate)):
+    * **British Rowing:** **125–140** for Adult Heavyweight Men (historically ~135–138 for GB Senior Trials), **120–135** for Lightweight Men, **120–130** for Heavyweight Women, **115–125** for Lightweight Women.
+    * **Rowing Australia:** Fixed at **130** (Heavyweight Men), **125** (Lightweight/Junior Men), **110** (Heavyweight Women), **100** (Lightweight/Junior Women).
+    * **Rowing Canada Aviron:** Fixed at **130** (Open Men), **120** (Lightweight/Junior Men), **120** (Open Women), **110** (Lightweight/Junior Women).
+  * **Takeaway:** If you are doing a national team or varsity selection test, you must train and test at your federation's mandated drag factor. If you are racing an open indoor championship (C.R.A.S.H.-B., WRIC, USRowing Indoor), dial in the drag factor that matches your height and physiological profile before the start.

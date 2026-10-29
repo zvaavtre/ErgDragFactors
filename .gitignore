@@ -1,6 +1,7 @@
 # Ignore raw downloaded HTML and telemetry caches
 data/raw/
 __pycache__/
+.pytest_cache/
 *.pyc
 .DS_Store
 .idea/

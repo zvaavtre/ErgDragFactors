@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "matplotlib",
+#   "numpy",
+#   "pandas",
+#   "scipy",
+# ]
+# ///
 """
-Statistical and biomechanical evaluation of C.R.A.S.H.-B. Sprints (2018-2026)
-and World Rowing Indoor Championships (WRIC 2019) 2,000m data.
+Statistical and biomechanical evaluation of C.R.A.S.H.-B. Sprints
+(2018-2020, 2022-2023, 2025-2026) and World Rowing Indoor Championships
+(WRIC 2019) 2,000m data using pandas, numpy, scipy.stats, and matplotlib.
 
-Reads anonymized summary CSVs in data/:
+Reads pseudonymized summary CSVs in data/:
   - data/crashb_2k_summary.csv
   - data/athlete_heights.csv
   - data/crashb_quarter_telemetry.csv
@@ -19,279 +29,209 @@ Outputs:
   - docs/04-crash-b-empirical-analysis.md
 """
 
-import csv
-import html
 import math
-from collections import defaultdict
+import sys
 from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from scipy import stats
 
 BASE_DIR = Path(__file__).resolve().parent
 CHARTS_DIR = BASE_DIR / "charts"
 DOCS_DIR = BASE_DIR.parent / "docs"
 
-
-def mean(xs):
-    return sum(xs) / len(xs) if xs else float("nan")
-
-
-def stdev(xs):
-    if len(xs) < 2:
-        return 0.0
-    m = mean(xs)
-    return math.sqrt(sum((x - m) ** 2 for x in xs) / (len(xs) - 1))
-
-
-def pearson_r(xs, ys):
-    """Return (r, slope, intercept, t_stat, approx_p_two_sided)."""
-    n = len(xs)
-    if n < 3:
-        return (float("nan"), float("nan"), float("nan"), float("nan"), float("nan"))
-    mx, my = mean(xs), mean(ys)
-    sxx = sum((x - mx) ** 2 for x in xs)
-    syy = sum((y - my) ** 2 for y in ys)
-    sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
-    if sxx <= 0 or syy <= 0:
-        return (0.0, 0.0, my, 0.0, 1.0)
-    r = sxy / math.sqrt(sxx * syy)
-    slope = sxy / sxx
-    intercept = my - slope * mx
-    if abs(r) >= 0.999999:
-        t_stat = float("inf")
-        p_val = 0.0
-    else:
-        t_stat = r * math.sqrt((n - 2) / (1.0 - r * r))
-        df = n - 2
-        z = abs(t_stat) * math.sqrt(1.0 - 1.0 / (4.0 * df)) if df > 2 else abs(t_stat)
-        p_val = math.erfc(z / math.sqrt(2.0))
-    return (r, slope, intercept, t_stat, p_val)
+# Physical constants from Anu Dudhia (Oxford University, Physics of Rowing)
+CONCEPT2_INERTIA_KGM2 = 0.1001      # Flywheel moment of inertia I (kg*m^2)
+CONCEPT2_SPROCKET_RADIUS_M = 0.014  # Chain sprocket radius r (m)
 
 
 def format_split(seconds: float) -> str:
-    if math.isnan(seconds) or seconds <= 0:
+    if seconds is None or pd.isna(seconds) or seconds <= 0:
         return "-"
-    mins = int(seconds // 60)
-    rem = seconds - mins * 60
+    s_round = round(float(seconds), 1)
+    mins = int(s_round // 60)
+    rem = s_round - mins * 60
     return f"{mins}:{rem:04.1f}"
 
 
-# =============================================================================
-# SVG CHART GENERATORS (Zero external dependencies, crisp vector output)
-# =============================================================================
-
-def svg_header(width: int, height: int) -> list:
-    return [
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="100%" height="100%">',
-        '<style>',
-        '  .bg { fill: #ffffff; rx: 10px; stroke: #e2e8f0; stroke-width: 1.5; }',
-        '  .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 16px; font-weight: 700; fill: #0f172a; }',
-        '  .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; fill: #475569; }',
-        '  .axis-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 600; fill: #1e293b; }',
-        '  .tick-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10.5px; fill: #64748b; }',
-        '  .legend-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: #334155; }',
-        '  .annot { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10.5px; font-weight: 600; fill: #1e293b; }',
-        '  .grid { stroke: #f1f5f9; stroke-width: 1; }',
-        '  .axis { stroke: #94a3b8; stroke-width: 1.2; }',
-        '</style>',
-        f'<rect class="bg" x="1" y="1" width="{width-2}" height="{height-2}" />',
-    ]
-
-
-def generate_chart_1_height_vs_spm_and_work(ver_m, ver_w, corr_m_spm, corr_w_spm, corr_m_work, corr_w_work, out_path: Path):
+def ols_summary(xs, ys):
     """
-    Chart 1: Dual-panel scatter + OLS regression plot of Verified Height (cm)
-    vs. Stroke Rate (spm) [Left] and Work per Stroke (J) [Right].
+    Use scipy.stats.linregress to compute exact (r, slope, intercept, t_stat, p_val).
     """
-    W, H = 960, 440
-    svg = svg_header(W, H)
+    x_arr = np.asarray(xs, dtype=float)
+    y_arr = np.asarray(ys, dtype=float)
+    mask = ~np.isnan(x_arr) & ~np.isnan(y_arr)
+    x_arr, y_arr = x_arr[mask], y_arr[mask]
+    n = len(x_arr)
+    if n < 3 or np.std(x_arr) == 0 or np.std(y_arr) == 0:
+        return (float("nan"), float("nan"), float("nan"), float("nan"), float("nan"))
+    res = stats.linregress(x_arr, y_arr)
+    r = float(res.rvalue)
+    df = n - 2
+    t_stat = float("inf") if abs(r) >= 1.0 else float(r * math.sqrt(df / (1.0 - r * r)))
+    return (r, float(res.slope), float(res.intercept), t_stat, float(res.pvalue))
 
-    svg.append('<text class="title" x="30" y="32">Verified Rower Height (Proxy for Stroke Length L) vs. Stroke Rate &amp; Work per Stroke</text>')
-    svg.append('<text class="subtitle" x="30" y="50">C.R.A.S.H.-B. &amp; WRIC Championship Finalists (n = 69 starts; height verified via World Rowing, USRowing &amp; NCAA/IRA rosters)</text>')
 
-    # Panel geometries
-    # Left panel: x in [65, 445], y in [80, 360]
-    # Right panel: x in [545, 925], y in [80, 360]
-    xmin, xmax = 165.0, 210.0
+# =============================================================================
+# DOMAIN PHYSICS & BIOMECHANICAL MODELS (Dudhia Oxford & Kleshnev BioRow)
+# =============================================================================
 
-    def map_x(val, px0, px1):
-        return px0 + (val - xmin) / (xmax - xmin) * (px1 - px0)
+def watts_from_split_500(split_500_s: float) -> float:
+    """Concept2 cubic power conversion: P = 2.80 / pace^3 = 2.80 * (500 / split_500)^3."""
+    v = 500.0 / split_500_s
+    return 2.80 * (v ** 3)
 
-    # --- LEFT PANEL: Height vs. Stroke Rate (spm) ---
-    px0, px1, py0, py1 = 65, 445, 80, 360
-    ymin_l, ymax_l = 28.0, 44.0
 
-    def map_yl(val):
-        return py1 - (val - ymin_l) / (ymax_l - ymin_l) * (py1 - py0)
+def split_500_from_watts(watts: float) -> float:
+    """Inverse Concept2 cubic power conversion: split_500 = 500 * (2.80 / P)^(1/3)."""
+    return 500.0 * ((2.80 / watts) ** (1.0 / 3.0))
 
-    # Gridlines & ticks Left
-    for yv in range(28, 45, 2):
-        yp = map_yl(yv)
-        svg.append(f'<line class="grid" x1="{px0}" y1="{yp:.1f}" x2="{px1}" y2="{yp:.1f}" />')
-        svg.append(f'<text class="tick-label" x="{px0-8}" y="{yp+4:.1f}" text-anchor="end">{yv}</text>')
 
-    for xv in range(165, 215, 5):
-        xp = map_x(xv, px0, px1)
-        svg.append(f'<line class="grid" x1="{xp:.1f}" y1="{py0}" x2="{xp:.1f}" y2="{py1}" />')
-        svg.append(f'<text class="tick-label" x="{xp:.1f}" y="{py1+16}" text-anchor="middle">{xv}</text>')
-        # Also show est drive length L on secondary tick row
-        est_l = 0.0078 * xv - 0.08
-        if xv % 10 == 0:
-            svg.append(f'<text class="tick-label" x="{xp:.1f}" y="{py1+30}" text-anchor="middle" fill="#0284c7">(L≈{est_l:.2f}m)</text>')
+def work_per_stroke_from_power_rate(watts: float, spm: float) -> float:
+    """Mechanical work per stroke (Joules): W_stroke = 60 * P / R."""
+    return 60.0 * watts / spm
 
-    svg.append(f'<line class="axis" x1="{px0}" y1="{py0}" x2="{px0}" y2="{py1}" />')
-    svg.append(f'<line class="axis" x1="{px0}" y1="{py1}" x2="{px1}" y2="{py1}" />')
-    svg.append(f'<text class="axis-label" x="{(px0+px1)/2}" y="{py1+50}" text-anchor="middle">Rower Height (cm) &amp; Est. Drive Length L (m)</text>')
-    svg.append(f'<text class="axis-label" transform="translate(22, {(py0+py1)/2}) rotate(-90)" text-anchor="middle">Average 2,000m Stroke Rate (spm)</text>')
-    svg.append(f'<text class="annot" x="{px0+8}" y="{py0+16}">A. Height vs. Stroke Rate (Shorter = Higher Rate)</text>')
 
-    # Regression lines Left
-    # Men: 174 to 209 cm
-    mx1, mx2 = 174.0, 209.0
-    my1 = corr_m_spm[1] * mx1 + corr_m_spm[2]
-    my2 = corr_m_spm[1] * mx2 + corr_m_spm[2]
-    svg.append(f'<line x1="{map_x(mx1, px0, px1):.1f}" y1="{map_yl(my1):.1f}" x2="{map_x(mx2, px0, px1):.1f}" y2="{map_yl(my2):.1f}" stroke="#1d4ed8" stroke-width="2.2" stroke-dasharray="5,3" />')
+def recovery_time_s(spm: float, drive_time_s: float) -> float:
+    """Recovery phase duration (seconds): T_recovery = 60 / R - T_drive."""
+    return (60.0 / spm) - drive_time_s
 
-    # Women: 167 to 196 cm
-    wx1, wx2 = 167.0, 196.0
-    wy1 = corr_w_spm[1] * wx1 + corr_w_spm[2]
-    wy2 = corr_w_spm[1] * wx2 + corr_w_spm[2]
-    svg.append(f'<line x1="{map_x(wx1, px0, px1):.1f}" y1="{map_yl(wy1):.1f}" x2="{map_x(wx2, px0, px1):.1f}" y2="{map_yl(wy2):.1f}" stroke="#be123c" stroke-width="2.2" stroke-dasharray="5,3" />')
 
-    # Points Left
-    for r in ver_m:
-        cx = map_x(r["verified_h"], px0, px1)
-        cy = map_yl(r["avg_spm"])
-        color = "#1d4ed8" if r["weight_class"] == "Open/Heavyweight" else "#0ea5e9"
-        svg.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4.5" fill="{color}" fill-opacity="0.8" stroke="#ffffff" stroke-width="1" />')
+def drag_factor_to_si(drag_factor: float) -> float:
+    """Convert PM5 displayed Drag Factor (e.g., 120 -> 120e-6 N*m*s^2) to SI units."""
+    return drag_factor * 1e-6 if drag_factor >= 0.01 else drag_factor
 
-    for r in ver_w:
-        cx = map_x(r["verified_h"], px0, px1)
-        cy = map_yl(r["avg_spm"])
-        color = "#be123c" if r["weight_class"] == "Open/Heavyweight" else "#f43f5e"
-        svg.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4.5" fill="{color}" fill-opacity="0.8" stroke="#ffffff" stroke-width="1" />')
 
-    svg.append(f'<text class="tick-label" x="{px1-8}" y="{py0+34}" text-anchor="end" fill="#1d4ed8" font-weight="600">Men: r = {corr_m_spm[0]:+.2f} ({corr_m_spm[1]*10:+.1f} spm / 10cm, p={corr_m_spm[4]:.3f})</text>')
-    svg.append(f'<text class="tick-label" x="{px1-8}" y="{py0+50}" text-anchor="end" fill="#be123c" font-weight="600">Women: r = {corr_w_spm[0]:+.2f} ({corr_w_spm[1]*10:+.1f} spm / 10cm, p={corr_w_spm[4]:.3f})</text>')
+def flywheel_omega_min(
+    omega_max: float,
+    drag_factor: float,
+    spm: float,
+    drive_time_s: float,
+    inertia: float = CONCEPT2_INERTIA_KGM2,
+) -> float:
+    """
+    Anu Dudhia (Oxford) analytical solution to I * d(omega)/dt = -k * omega^2
+    over the unpowered recovery phase T_recovery = 60 / R - T_drive:
+      omega_min(R) = omega_max / (1 + (k / I) * omega_max * (60 / R - T_drive))
+    """
+    k_si = drag_factor_to_si(drag_factor)
+    t_rec = recovery_time_s(spm, drive_time_s)
+    return omega_max / (1.0 + (k_si / inertia) * omega_max * t_rec)
 
-    # --- RIGHT PANEL: Height vs. Work per Stroke (J) ---
-    rx0, rx1, ry0, ry1 = 545, 925, 80, 360
-    ymin_r, ymax_r = 350.0, 1050.0
 
-    def map_yr(val):
-        return ry1 - (val - ymin_r) / (ymax_r - ymin_r) * (ry1 - ry0)
+def catch_slip_m(
+    omega_min: float,
+    a_catch_ms2: float,
+    sprocket_radius_m: float = CONCEPT2_SPROCKET_RADIUS_M,
+) -> float:
+    """
+    Catch slip distance L_slip (meters) traveled by the handle before linear handle
+    speed v_handle = a_catch * t matches sprocket speed v_engage = r * omega_min:
+      L_slip = (r^2 * omega_min^2) / (2 * a_catch)
+    """
+    v_engage = sprocket_radius_m * omega_min
+    return (v_engage ** 2) / (2.0 * a_catch_ms2)
 
-    for yv in range(400, 1051, 100):
-        yp = map_yr(yv)
-        svg.append(f'<line class="grid" x1="{rx0}" y1="{yp:.1f}" x2="{rx1}" y2="{yp:.1f}" />')
-        svg.append(f'<text class="tick-label" x="{rx0-8}" y="{yp+4:.1f}" text-anchor="end">{yv} J</text>')
 
-    for xv in range(165, 215, 5):
-        xp = map_x(xv, rx0, rx1)
-        svg.append(f'<line class="grid" x1="{xp:.1f}" y1="{ry0}" x2="{xp:.1f}" y2="{ry1}" />')
-        svg.append(f'<text class="tick-label" x="{xp:.1f}" y="{ry1+16}" text-anchor="middle">{xv}</text>')
-        est_l = 0.0078 * xv - 0.08
-        if xv % 10 == 0:
-            svg.append(f'<text class="tick-label" x="{xp:.1f}" y="{ry1+30}" text-anchor="middle" fill="#0284c7">(L≈{est_l:.2f}m)</text>')
+def effective_drive_length_m(l_total_m: float, l_slip_m: float) -> float:
+    """Engaged flywheel drive length: L_effective = L_total - L_slip."""
+    return l_total_m - l_slip_m
 
-    svg.append(f'<line class="axis" x1="{rx0}" y1="{ry0}" x2="{rx0}" y2="{ry1}" />')
-    svg.append(f'<line class="axis" x1="{rx0}" y1="{ry1}" x2="{rx1}" y2="{ry1}" />')
-    svg.append(f'<text class="axis-label" x="{(rx0+rx1)/2}" y="{ry1+50}" text-anchor="middle">Rower Height (cm) &amp; Est. Drive Length L (m)</text>')
-    svg.append(f'<text class="axis-label" transform="translate(496, {(ry0+ry1)/2}) rotate(-90)" text-anchor="middle">Mechanical Work per Stroke (Joules)</text>')
-    svg.append(f'<text class="annot" x="{rx0+8}" y="{ry0+16}">B. Height vs. Work per Stroke (Taller = Higher Leverage)</text>')
 
-    # Regression lines Right
-    w_my1 = corr_m_work[1] * mx1 + corr_m_work[2]
-    w_my2 = corr_m_work[1] * mx2 + corr_m_work[2]
-    svg.append(f'<line x1="{map_x(mx1, rx0, rx1):.1f}" y1="{map_yr(w_my1):.1f}" x2="{map_x(mx2, rx0, rx1):.1f}" y2="{map_yr(w_my2):.1f}" stroke="#1d4ed8" stroke-width="2.2" stroke-dasharray="5,3" />')
+def handle_drag_factor(power_drive_w: float, drive_length_m: float, drive_time_s: float) -> float:
+    """
+    Dr. Valery Kleshnev (BioRow RBN 2011/01) Handle Drag Factor (HDF):
+      HDF = P_drive / v_drive^3 = P_drive / (L / T_drive)^3
+    """
+    v_drive = drive_length_m / drive_time_s
+    return power_drive_w / (v_drive ** 3)
 
-    w_wy1 = corr_w_work[1] * wx1 + corr_w_work[2]
-    w_wy2 = corr_w_work[1] * wx2 + corr_w_work[2]
-    svg.append(f'<line x1="{map_x(wx1, rx0, rx1):.1f}" y1="{map_yr(w_wy1):.1f}" x2="{map_x(wx2, rx0, rx1):.1f}" y2="{map_yr(w_wy2):.1f}" stroke="#be123c" stroke-width="2.2" stroke-dasharray="5,3" />')
 
-    for r in ver_m:
-        cx = map_x(r["verified_h"], rx0, rx1)
-        cy = map_yr(r["work_per_stroke_j"])
-        color = "#1d4ed8" if r["weight_class"] == "Open/Heavyweight" else "#0ea5e9"
-        svg.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4.5" fill="{color}" fill-opacity="0.8" stroke="#ffffff" stroke-width="1" />')
+# =============================================================================
+# MATPLOTLIB VECTOR SVG CHART GENERATORS
+# =============================================================================
 
-    for r in ver_w:
-        cx = map_x(r["verified_h"], rx0, rx1)
-        cy = map_yr(r["work_per_stroke_j"])
-        color = "#be123c" if r["weight_class"] == "Open/Heavyweight" else "#f43f5e"
-        svg.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4.5" fill="{color}" fill-opacity="0.8" stroke="#ffffff" stroke-width="1" />')
+def setup_plot_style():
+    plt.rcParams.update({
+        "font.family": "sans-serif",
+        "font.size": 10,
+        "axes.titlesize": 11,
+        "axes.titleweight": "bold",
+        "axes.labelsize": 10,
+        "axes.labelweight": "bold",
+        "axes.edgecolor": "#94a3b8",
+        "axes.grid": True,
+        "grid.color": "#e2e8f0",
+        "grid.linestyle": "--",
+        "grid.alpha": 0.7,
+        "figure.facecolor": "white",
+        "axes.facecolor": "white",
+    })
 
-    svg.append(f'<text class="tick-label" x="{rx0+12}" y="{ry0+36}" fill="#1d4ed8" font-weight="600">Men: r = {corr_m_work[0]:+.2f} (+{corr_m_work[1]*10:.0f} J / 10cm, p &lt; 1e-14)</text>')
-    svg.append(f'<text class="tick-label" x="{rx0+12}" y="{ry0+52}" fill="#be123c" font-weight="600">Women: r = {corr_w_work[0]:+.2f} (+{corr_w_work[1]*10:.0f} J / 10cm, p &lt; 1e-13)</text>')
 
-    # Legend at top right
-    lx = 600
-    ly = 66
-    items = [
-        ("#1d4ed8", "Men Open/Hwt"),
-        ("#0ea5e9", "Men Lwt/Fly"),
-        ("#be123c", "Women Open/Hwt"),
-        ("#f43f5e", "Women Lwt"),
-    ]
-    for idx, (col, lbl) in enumerate(items):
-        ix = lx + idx * 90
-        svg.append(f'<circle cx="{ix}" cy="{ly-4}" r="4.5" fill="{col}" />')
-        svg.append(f'<text class="legend-text" x="{ix+8}" y="{ly}">{lbl}</text>')
+def generate_chart_1(ver_df: pd.DataFrame, out_path: Path):
+    setup_plot_style()
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5.2))
+    fig.suptitle(
+        "Verified Rower Height vs. Stroke Rate & Work per Stroke (C.R.A.S.H.-B. & WRIC Finalists)",
+        fontsize=13,
+        fontweight="bold",
+        y=0.98,
+    )
 
-    svg.append("</svg>")
+    palette = {
+        ("M", "Open/Heavyweight"): ("#1d4ed8", "Men Open/Hwt"),
+        ("M", "Lightweight"): ("#0ea5e9", "Men Lwt"),
+        ("M", "Flyweight"): ("#38bdf8", "Men Fly"),
+        ("W", "Open/Heavyweight"): ("#be123c", "Women Open/Hwt"),
+        ("W", "Lightweight"): ("#f43f5e", "Women Lwt"),
+    }
+
+    for (sex, wc), grp in ver_df.groupby(["sex", "weight_class"]):
+        col, lbl = palette.get((sex, wc), ("#64748b", f"{sex} {wc}"))
+        ax1.scatter(grp["verified_height_cm"], grp["avg_spm"], color=col, label=lbl, s=36, alpha=0.85, edgecolors="white", linewidth=0.6)
+        ax2.scatter(grp["verified_height_cm"], grp["work_per_stroke_j"], color=col, label=lbl, s=36, alpha=0.85, edgecolors="white", linewidth=0.6)
+
+    for sex, col, name in [("M", "#1d4ed8", "Men Pooled"), ("W", "#be123c", "Women Pooled")]:
+        sub = ver_df[ver_df["sex"] == sex]
+        if len(sub) >= 3:
+            r_s, b_s, a_s, _, p_s = ols_summary(sub["verified_height_cm"], sub["avg_spm"])
+            x_vals = np.linspace(sub["verified_height_cm"].min(), sub["verified_height_cm"].max(), 50)
+            ax1.plot(x_vals, b_s * x_vals + a_s, color=col, linestyle="--", linewidth=1.8, label=f"{name}: r={r_s:+.2f} (p={p_s:.3f})")
+
+            r_w, b_w, a_w, _, p_w = ols_summary(sub["verified_height_cm"], sub["work_per_stroke_j"])
+            ax2.plot(x_vals, b_w * x_vals + a_w, color=col, linestyle="--", linewidth=1.8, label=f"{name}: r={r_w:+.2f} (p={p_w:.1e})")
+
+    ax1.set_title("A. Height vs. Average 2,000m Stroke Rate (spm)")
+    ax1.set_xlabel("Verified Height (cm)")
+    ax1.set_ylabel("Average Stroke Rate (spm)")
+    ax1.legend(fontsize=8, loc="upper right")
+
+    ax2.set_title("B. Height vs. Mechanical Work per Stroke (J)")
+    ax2.set_xlabel("Verified Height (cm)")
+    ax2.set_ylabel("Work per Stroke (Joules)")
+    ax2.legend(fontsize=8, loc="upper left")
+
+    fig.tight_layout(rect=[0, 0, 1, 0.94])
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text("\n".join(svg), encoding="utf-8")
+    fig.savefig(out_path, format="svg")
+    plt.close(fig)
 
 
-def generate_chart_2_category_operating_map(cat_summary_rows, out_path: Path):
-    """
-    Chart 2: Biomechanical Operating Map (Work per Stroke vs. Stroke Rate)
-    for Top-25% Competitive Quartile across Categories, with Iso-Power (Watts) contours.
-    """
-    W, H = 860, 460
-    svg = svg_header(W, H)
+def generate_chart_2(cat_df: pd.DataFrame, out_path: Path):
+    setup_plot_style()
+    fig, ax = plt.subplots(figsize=(10, 5.5))
 
-    svg.append('<text class="title" x="30" y="32">Biomechanical Operating Map: Work per Stroke vs. Stroke Rate by Stature Category</text>')
-    svg.append('<text class="subtitle" x="30" y="50">Top-25% Competitive Quartile per Category (N = 3,565 total races) plotted against Iso-Power Contours P = W_stroke · (R / 60)</text>')
+    r_grid = np.linspace(28.5, 40.5, 100)
+    for watts in (200, 250, 300, 350, 400, 450, 500):
+        w_curve = watts * 60.0 / r_grid
+        ax.plot(r_grid, w_curve, color="#cbd5e1", linestyle=":", linewidth=1.2)
+        ax.text(40.2, watts * 60.0 / 40.2, f"{watts}W ({format_split(split_500_from_watts(watts))})", fontsize=8, color="#64748b", ha="right", va="bottom")
 
-    px0, px1, py0, py1 = 80, 620, 75, 400
-    xmin, xmax = 29.0, 40.0   # Stroke Rate (spm)
-    ymin, ymax = 340.0, 920.0  # Work per Stroke (J)
-
-    def map_x(val):
-        return px0 + (val - xmin) / (xmax - xmin) * (px1 - px0)
-
-    def map_y(val):
-        return py1 - (val - ymin) / (ymax - ymin) * (py1 - py0)
-
-    # Grid
-    for yv in range(350, 950, 100):
-        yp = map_y(yv)
-        svg.append(f'<line class="grid" x1="{px0}" y1="{yp:.1f}" x2="{px1}" y2="{yp:.1f}" />')
-        svg.append(f'<text class="tick-label" x="{px0-8}" y="{yp+4:.1f}" text-anchor="end">{yv} J</text>')
-
-    for xv in range(29, 41, 1):
-        xp = map_x(xv)
-        svg.append(f'<line class="grid" x1="{xp:.1f}" y1="{py0}" x2="{xp:.1f}" y2="{py1}" />')
-        svg.append(f'<text class="tick-label" x="{xp:.1f}" y="{py1+16}" text-anchor="middle">{xv} spm</text>')
-
-    # Draw Iso-Power Contours: Watts = W_stroke * (R / 60) => W_stroke = Watts * 60 / R
-    for watts, split_lbl in [(200, "2:00.5"), (250, "1:51.9"), (300, "1:45.3"), (350, "1:40.0"), (400, "1:35.6"), (450, "1:32.0"), (500, "1:28.8")]:
-        pts = []
-        for r_step in [29.0 + 0.25 * i for i in range(45)]:
-            wj = watts * 60.0 / r_step
-            if ymin <= wj <= ymax:
-                pts.append(f"{map_x(r_step):.1f},{map_y(wj):.1f}")
-        if len(pts) >= 2:
-            svg.append(f'<polyline points="{" ".join(pts)}" fill="none" stroke="#cbd5e1" stroke-width="1.3" stroke-dasharray="4,4" />')
-            # Label contour near right or top end
-            last_x, last_y = pts[-1].split(",")
-            svg.append(f'<text class="tick-label" x="{float(last_x)-4:.1f}" y="{float(last_y)-4:.1f}" text-anchor="end" fill="#94a3b8">{watts}W ({split_lbl})</text>')
-
-    svg.append(f'<line class="axis" x1="{px0}" y1="{py0}" x2="{px0}" y2="{py1}" />')
-    svg.append(f'<line class="axis" x1="{px0}" y1="{py1}" x2="{px1}" y2="{py1}" />')
-    svg.append(f'<text class="axis-label" x="{(px0+px1)/2}" y="{py1+42}" text-anchor="middle">Top-25% Category Stroke Rate R (spm)</text>')
-    svg.append(f'<text class="axis-label" transform="translate(24, {(py0+py1)/2}) rotate(-90)" text-anchor="middle">Top-25% Work per Stroke W_stroke (Joules)</text>')
-
-    # Plot key categories
     color_map = {
         ("M", "Open/Heavyweight"): "#1d4ed8",
         ("M", "Lightweight"): "#0284c7",
@@ -301,522 +241,377 @@ def generate_chart_2_category_operating_map(cat_summary_rows, out_path: Path):
         ("W", "Flyweight"): "#fb7185",
     }
 
-    short_age = {
-        "Open/Senior": "Open",
-        "U23": "U23",
-        "U19/Junior": "U19",
-        "U17": "U17",
-        "U15/Youth": "U15",
-        "Masters": "Masters",
-    }
+    plot_df = cat_df[cat_df["age_category"] != "U15/Youth"].copy()
+    for _, row in plot_df.iterrows():
+        col = color_map.get((row["sex"], row["weight_class"]), "#64748b")
+        ax.scatter(row["top25_mean_spm"], row["top25_mean_work_j"], color=col, s=70, alpha=0.9, edgecolors="white", linewidth=1.0, zorder=3)
+        wc_short = "Hwt" if "Open" in row["weight_class"] else ("Lwt" if "Light" in row["weight_class"] else "Fly")
+        short_age = row["age_category"].split("/")[0]
+        ax.annotate(
+            f"{row['sex']} {wc_short} {short_age}",
+            (row["top25_mean_spm"], row["top25_mean_work_j"]),
+            xytext=(5, 2),
+            textcoords="offset points",
+            fontsize=8.5,
+            fontweight="semibold",
+            color="#1e293b",
+        )
 
-    for cr in cat_summary_rows:
-        if cr["age_category"] == "U15/Youth":
-            continue
-        cx = map_x(cr["top25_mean_spm"])
-        cy = map_y(cr["top25_mean_work_j"])
-        col = color_map.get((cr["sex"], cr["weight_class"]), "#64748b")
-        radius = max(5.0, min(11.0, 3.5 + math.log10(max(10, cr["n_total"])) * 2.5))
-        svg.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{radius:.1f}" fill="{col}" fill-opacity="0.85" stroke="#ffffff" stroke-width="1.5" />')
-        wc_short = "Hwt" if "Open" in cr["weight_class"] else ("Lwt" if "Light" in cr["weight_class"] else "Fly")
-        lbl = f"{cr['sex']} {wc_short} {short_age.get(cr['age_category'], cr['age_category'])}"
-        svg.append(f'<text class="tick-label" x="{cx+radius+3:.1f}" y="{cy+3:.1f}" fill="#1e293b" font-weight="600">{lbl}</text>')
+    ax.set_xlim(28.5, 40.5)
+    ax.set_ylim(330, 930)
+    ax.set_title("Biomechanical Operating Map: Top-25% Work per Stroke vs. Stroke Rate by Category")
+    ax.set_xlabel("Top-25% Category Stroke Rate R (spm)")
+    ax.set_ylabel("Top-25% Work per Stroke W_stroke (Joules)")
 
-    # Explanatory callout box on the right
-    bx, by = 645, 85
-    svg.append(f'<rect x="{bx}" y="{by}" width="195" height="305" rx="8" fill="#f8fafc" stroke="#cbd5e1" />')
-    svg.append(f'<text class="annot" x="{bx+12}" y="{by+24}">Stature Class Legend</text>')
-    leg = [
-        ("#1d4ed8", "Men Open/Heavyweight"),
-        ("#0284c7", "Men Lightweight (≤75kg)"),
-        ("#38bdf8", "Men Flyweight (≤65.8kg)"),
-        ("#be123c", "Women Open/Heavyweight"),
-        ("#f43f5e", "Women Lightweight (≤61.5kg)"),
-        ("#fb7185", "Women Flyweight (≤54.4kg)"),
-    ]
-    for i, (col, text) in enumerate(leg):
-        ly = by + 48 + i * 24
-        svg.append(f'<circle cx="{bx+20}" cy="{ly-4}" r="6" fill="{col}" />')
-        svg.append(f'<text class="legend-text" x="{bx+34}" y="{ly}">{text}</text>')
-
-    svg.append(f'<text class="annot" x="{bx+12}" y="{by+208}">Key Takeaway:</text>')
-    svg.append(f'<text class="tick-label" x="{bx+12}" y="{by+226}">• Open Hwt Men generate</text>')
-    svg.append(f'<text class="tick-label" x="{bx+12}" y="{by+241}">  867 J/stroke at 35.7 spm.</text>')
-    svg.append(f'<text class="tick-label" x="{bx+12}" y="{by+260}">• Open Lwt Men must rate</text>')
-    svg.append(f'<text class="tick-label" x="{bx+12}" y="{by+275}">  38.7 spm at 649 J/stroke</text>')
-    svg.append(f'<text class="tick-label" x="{bx+12}" y="{by+290}">  to reach 1:34.3 pace.</text>')
-
-    svg.append("</svg>")
+    fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text("\n".join(svg), encoding="utf-8")
+    fig.savefig(out_path, format="svg")
+    plt.close(fig)
 
 
-def generate_chart_3_within_class_spm_vs_split(rows, out_path: Path):
-    """
-    Chart 3: Within-Stature-Class Stroke Rate (spm) vs. 2,000m Split Pace (/500m)
-    Binned means +/- SD across non-Masters competitive cohorts.
-    """
-    W, H = 860, 440
-    svg = svg_header(W, H)
+def generate_chart_3(df: pd.DataFrame, out_path: Path):
+    setup_plot_style()
+    fig, ax = plt.subplots(figsize=(10, 5.2))
 
-    svg.append('<text class="title" x="30" y="32">Within-Class Stroke Rate (R) vs. 2,000m Split Pace (Non-Masters Championship Field)</text>')
-    svg.append('<text class="subtitle" x="30" y="50">Holding stature/weight class constant, higher sustained stroke rate directly correlates with faster 2,000m splits (n = 1,789 starts)</text>')
+    non_masters = df[df["age_category"].isin(["Open/Senior", "U23", "U19/Junior"])].copy()
+    cohorts = [
+        ("Men Open/Heavyweight (U19/U23/Open)", "#1d4ed8", ("M", "Open/Heavyweight")),
+        ("Men Lightweight (U19/U23/Open)", "#0ea5e9", ("M", "Lightweight")),
+        ("Women Open/Heavyweight (U19/U23/Open)", "#be123c", ("W", "Open/Heavyweight")),
+        ("Women Lightweight (U19/U23/Open)", "#f43f5e", ("W", "Lightweight")),
+    ]
+    bins = [(26, 29), (29, 31), (31, 33), (33, 35), (35, 37), (37, 43)]
 
-    px0, px1, py0, py1 = 80, 620, 75, 385
-    xmin, xmax = 26.0, 41.0
-    ymin, ymax = 85.0, 125.0  # 1:25.0 to 2:05.0 split (inverted so faster is higher!)
+    for label, col, (sex, wc) in cohorts:
+        sub = non_masters[(non_masters["sex"] == sex) & (non_masters["weight_class"] == wc)]
+        r_val, slope, _, _, _ = ols_summary(sub["avg_spm"], sub["avg_split_500_s"])
+        xs, ys = [], []
+        for b0, b1 in bins:
+            b_sub = sub[(sub["avg_spm"] >= b0) & (sub["avg_spm"] < b1)]
+            if len(b_sub) >= 4:
+                xs.append(b_sub["avg_spm"].mean())
+                ys.append(b_sub["avg_split_500_s"].mean())
+        if len(xs) >= 2:
+            ax.plot(xs, ys, marker="o", color=col, linewidth=2.2, label=f"{label} (n={len(sub)}, r={r_val:+.2f}, {slope:+.2f}s/spm)")
 
-    def map_x(val):
-        return px0 + (val - xmin) / (xmax - xmin) * (px1 - px0)
+    ax.invert_yaxis()
+    yticks = list(range(85, 126, 5))
+    ax.set_yticks(yticks)
+    ax.set_yticklabels([format_split(y) for y in yticks])
+    ax.set_title("Within-Class Stroke Rate vs. 500m Split Pace (Non-Masters Championship Field)")
+    ax.set_xlabel("Average 2,000m Stroke Rate (spm)")
+    ax.set_ylabel("500m Split Pace (Faster ↑)")
+    ax.legend(fontsize=8.5, loc="lower left")
 
-    def map_y(val):
-        # Faster split (smaller seconds) at the top
-        return py0 + (val - ymin) / (ymax - ymin) * (py1 - py0)
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, format="svg")
+    plt.close(fig)
 
-    for yv in range(85, 126, 5):
-        yp = map_y(yv)
-        svg.append(f'<line class="grid" x1="{px0}" y1="{yp:.1f}" x2="{px1}" y2="{yp:.1f}" />')
-        svg.append(f'<text class="tick-label" x="{px0-8}" y="{yp+4:.1f}" text-anchor="end">{format_split(yv)}</text>')
 
-    for xv in range(26, 42, 2):
-        xp = map_x(xv)
-        svg.append(f'<line class="grid" x1="{xp:.1f}" y1="{py0}" x2="{xp:.1f}" y2="{py1}" />')
-        svg.append(f'<text class="tick-label" x="{xp:.1f}" y="{py1+16}" text-anchor="middle">{xv} spm</text>')
+def generate_chart_4(tel_df: pd.DataFrame, out_path: Path):
+    setup_plot_style()
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5.0))
+    fig.suptitle(
+        f"PM5 Race-Chart Telemetry (n = {len(tel_df)}): Quarter-by-Quarter Cadence & Pacing Stratification",
+        fontsize=13,
+        fontweight="bold",
+        y=0.98,
+    )
 
-    svg.append(f'<line class="axis" x1="{px0}" y1="{py0}" x2="{px0}" y2="{py1}" />')
-    svg.append(f'<line class="axis" x1="{px0}" y1="{py1}" x2="{px1}" y2="{py1}" />')
-    svg.append(f'<text class="axis-label" x="{(px0+px1)/2}" y="{py1+42}" text-anchor="middle">Average 2,000m Stroke Rate (spm)</text>')
-    svg.append(f'<text class="axis-label" transform="translate(22, {(py0+py1)/2}) rotate(-90)" text-anchor="middle">500m Split Pace (Faster ↑)</text>')
+    q_x = [1, 2, 3, 4]
+    q_labels = ["Q1 (0–500m)", "Q2 (500–1000m)", "Q3 (1000–1500m)", "Q4 (1500–2000m)"]
 
     cohorts = [
-        ("Men Open/Heavyweight (U19/U23/Open)", "#1d4ed8", lambda r: r["sex"] == "M" and r["weight_class"] == "Open/Heavyweight" and r["age_category"] in ("Open/Senior", "U23", "U19/Junior")),
-        ("Men Lightweight (U19/U23/Open)", "#0ea5e9", lambda r: r["sex"] == "M" and r["weight_class"] == "Lightweight" and r["age_category"] in ("Open/Senior", "U23", "U19/Junior")),
-        ("Women Open/Heavyweight (U19/U23/Open)", "#be123c", lambda r: r["sex"] == "W" and r["weight_class"] == "Open/Heavyweight" and r["age_category"] in ("Open/Senior", "U23", "U19/Junior")),
-        ("Women Lightweight (U19/U23/Open)", "#f43f5e", lambda r: r["sex"] == "W" and r["weight_class"] == "Lightweight" and r["age_category"] in ("Open/Senior", "U23", "U19/Junior")),
+        ("Men Lightweight", "#0284c7", tel_df[(tel_df["sex"] == "M") & (tel_df["weight_class"] == "Lightweight")]),
+        ("Women Lightweight", "#f43f5e", tel_df[(tel_df["sex"] == "W") & (tel_df["weight_class"] == "Lightweight")]),
+        ("Men Open/Hwt", "#1d4ed8", tel_df[(tel_df["sex"] == "M") & (tel_df["weight_class"] == "Open/Heavyweight")]),
+        ("Women Open/Hwt", "#be123c", tel_df[(tel_df["sex"] == "W") & (tel_df["weight_class"] == "Open/Heavyweight")]),
     ]
+    for lbl, col, grp in cohorts:
+        if len(grp) > 0:
+            means = [grp[f"q{q}_spm"].mean() for q in q_x]
+            ax1.plot(q_x, means, marker="o", color=col, linewidth=2.0, label=f"{lbl} (n={len(grp)})")
 
-    bins = [(26, 29), (29, 31), (31, 33), (33, 35), (35, 37), (37, 42)]
+    ax1.set_xticks(q_x)
+    ax1.set_xticklabels(q_labels, fontsize=8.5)
+    ax1.set_title("A. Parabolic Championship Cadence Curve (Q1 → Q4)")
+    ax1.set_ylabel("Quarter Stroke Rate (spm)")
+    ax1.legend(fontsize=8.5)
 
-    bx, by = 640, 80
-    svg.append(f'<rect x="{bx}" y="{by}" width="200" height="290" rx="8" fill="#f8fafc" stroke="#cbd5e1" />')
-    svg.append(f'<text class="annot" x="{bx+12}" y="{by+24}">Within-Class Correlations</text>')
+    valid_splits = tel_df.dropna(subset=["split_q1_s", "split_q2_s", "split_q3_s", "split_q4_s"]).copy()
+    valid_splits["q3_q1_delta"] = valid_splits["split_q3_s"] - valid_splits["split_q1_s"]
 
-    for idx, (label, col, pred) in enumerate(cohorts):
-        sub = [r for r in rows if pred(r)]
-        r_val, slope, _, _, _ = pearson_r([x["avg_spm"] for x in sub], [x["avg_split_500_s"] for x in sub])
-        pts = []
-        for b0, b1 in bins:
-            b_rows = [x for x in sub if b0 <= x["avg_spm"] < b1]
-            if len(b_rows) >= 4:
-                mx = mean([x["avg_spm"] for x in b_rows])
-                my = mean([x["avg_split_500_s"] for x in b_rows])
-                if ymin <= my <= ymax:
-                    pts.append((map_x(mx), map_y(my), len(b_rows)))
+    tiers = [
+        ("Even / Negative Split (Q3−Q1 ≤ +1.5s)", "#059669", valid_splits[valid_splits["q3_q1_delta"] <= 1.5]),
+        ("Moderate Positive Split (+1.5s < Q3−Q1 < +4.0s)", "#d97706", valid_splits[(valid_splits["q3_q1_delta"] > 1.5) & (valid_splits["q3_q1_delta"] < 4.0)]),
+        ("Severe Positive-Split Fade (Q3−Q1 ≥ +4.0s)", "#dc2626", valid_splits[valid_splits["q3_q1_delta"] >= 4.0]),
+    ]
+    ax2.axhline(0.0, color="#0f172a", linestyle="--", linewidth=1.0)
+    for lbl, col, grp in tiers:
+        if len(grp) > 0:
+            deltas = [
+                0.0,
+                (grp["split_q2_s"] - grp["split_q1_s"]).mean(),
+                (grp["split_q3_s"] - grp["split_q1_s"]).mean(),
+                (grp["split_q4_s"] - grp["split_q1_s"]).mean(),
+            ]
+            ax2.plot(q_x, deltas, marker="o", color=col, linewidth=2.2, label=f"{lbl} (n={len(grp)})")
 
-        if len(pts) >= 2:
-            poly = " ".join(f"{x:.1f},{y:.1f}" for x, y, _ in pts)
-            svg.append(f'<polyline points="{poly}" fill="none" stroke="{col}" stroke-width="2.8" />')
-            for x, y, cnt in pts:
-                svg.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.5" fill="{col}" stroke="#ffffff" stroke-width="1.2" />')
+    ax2.set_xticks(q_x)
+    ax2.set_xticklabels(q_labels, fontsize=8.5)
+    ax2.set_title("B. Split Delta vs. Q1 by Pacing Tier (Conditioned on Q3−Q1)")
+    ax2.set_ylabel("Split Delta vs. Q1 (s/500m, Lower = Faster)")
+    ax2.legend(fontsize=8)
 
-        ly = by + 50 + idx * 56
-        svg.append(f'<line x1="{bx+12}" y1="{ly-4}" x2="{bx+32}" y2="{ly-4}" stroke="{col}" stroke-width="3" />')
-        svg.append(f'<circle cx="{bx+22}" cy="{ly-4}" r="4" fill="{col}" />')
-        short_lbl = label.split(" (")[0]
-        svg.append(f'<text class="legend-text" x="{bx+38}" y="{ly}" font-weight="600">{short_lbl}</text>')
-        svg.append(f'<text class="tick-label" x="{bx+38}" y="{ly+16}">r = {r_val:+.2f} ({slope:+.2f}s/500m per +1 spm)</text>')
-        svg.append(f'<text class="tick-label" x="{bx+38}" y="{ly+30}">n = {len(sub)} race starts</text>')
-
-    svg.append("</svg>")
+    fig.tight_layout(rect=[0, 0, 1, 0.94])
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text("\n".join(svg), encoding="utf-8")
+    fig.savefig(out_path, format="svg")
+    plt.close(fig)
 
 
-def generate_chart_4_telemetry_quarters(telemetry_rows, out_path: Path):
+def verify_math() -> None:
     """
-    Chart 4: Dual-Panel Quarter-by-Quarter (Q1 -> Q4) Telemetry Analysis:
-      - Left: Parabolic Stroke Rate Curve (Q1, Q2, Q3, Q4) by Cohort
-      - Right: Split Pace Change from Q1 (s/500m) for Even Splitters vs. Flywheel Die-Off
+    Verify statistical and biomechanical functions against scipy.stats and
+    analytical invariants.
     """
-    W, H = 960, 430
-    svg = svg_header(W, H)
+    # 1. Verify ols_summary matches scipy.stats.pearsonr and linregress
+    xs = np.array([170.0, 175.0, 180.0, 185.0, 190.0, 195.0, 200.0, 205.0])
+    ys = np.array([38.2, 36.9, 36.1, 35.0, 34.8, 33.5, 33.1, 32.0])
+    r, slope, intercept, _, p_val = ols_summary(xs, ys)
+    pr = stats.pearsonr(xs, ys)
+    assert math.isclose(r, pr.statistic, rel_tol=1e-13)
+    assert math.isclose(p_val, pr.pvalue, rel_tol=1e-13)
+    assert math.isclose(slope * np.mean(xs) + intercept, np.mean(ys), rel_tol=1e-13)
 
-    svg.append('<text class="title" x="30" y="32">PM5 Race-Chart Telemetry (n = 400): Quarter-by-Quarter Stroke Rate &amp; Split Decay</text>')
-    svg.append('<text class="subtitle" x="30" y="50">Left: Parabolic championship cadence profile (Q1 → Q4). Right: Split decay (Q_i − Q_1) in Even Splitters vs. Flywheel Die-Off</text>')
+    # 2. Verify Dudhia flywheel ODE invariant: 1/omega_min - 1/omega_max == (k/I)*T_rec
+    omega_max = 145.0
+    df_pm5 = 125.0
+    spm = 34.0
+    t_drive = 0.72
+    t_rec = recovery_time_s(spm, t_drive)
+    w_min = flywheel_omega_min(omega_max, df_pm5, spm, t_drive)
+    k_si = drag_factor_to_si(df_pm5)
+    assert math.isclose(
+        (1.0 / w_min) - (1.0 / omega_max),
+        (k_si / CONCEPT2_INERTIA_KGM2) * t_rec,
+        rel_tol=1e-14,
+    )
 
-    # Left panel: Q1..Q4 Stroke Rate
-    px0, px1, py0, py1 = 65, 445, 80, 355
-    ymin_l, ymax_l = 29.5, 36.5
-
-    def map_qx(q_idx, x0, x1):
-        # q_idx in 1..4
-        return x0 + (q_idx - 1) / 3.0 * (x1 - x0)
-
-    def map_yl(val):
-        return py1 - (val - ymin_l) / (ymax_l - ymin_l) * (py1 - py0)
-
-    for yv in [30, 31, 32, 33, 34, 35, 36]:
-        yp = map_yl(yv)
-        svg.append(f'<line class="grid" x1="{px0}" y1="{yp:.1f}" x2="{px1}" y2="{yp:.1f}" />')
-        svg.append(f'<text class="tick-label" x="{px0-8}" y="{yp+4:.1f}" text-anchor="end">{yv} spm</text>')
-
-    q_labels = ["Q1 (0–500m)", "Q2 (500–1000m)", "Q3 (1000–1500m)", "Q4 (1500–2000m)"]
-    for q in range(1, 5):
-        xp = map_qx(q, px0, px1)
-        svg.append(f'<line class="grid" x1="{xp:.1f}" y1="{py0}" x2="{xp:.1f}" y2="{py1}" />')
-        svg.append(f'<text class="tick-label" x="{xp:.1f}" y="{py1+18}" text-anchor="middle">{q_labels[q-1]}</text>')
-
-    svg.append(f'<line class="axis" x1="{px0}" y1="{py0}" x2="{px0}" y2="{py1}" />')
-    svg.append(f'<line class="axis" x1="{px0}" y1="{py1}" x2="{px1}" y2="{py1}" />')
-    svg.append(f'<text class="axis-label" x="{(px0+px1)/2}" y="{py1+42}" text-anchor="middle">2,000m Race Quarter</text>')
-    svg.append(f'<text class="axis-label" transform="translate(20, {(py0+py1)/2}) rotate(-90)" text-anchor="middle">Quarter Stroke Rate (spm)</text>')
-    svg.append(f'<text class="annot" x="{px0+8}" y="{py0+16}">A. Parabolic Rate Curve (Q1 Settle → Q4 Sprint)</text>')
-
-    rate_series = [
-        ("Men Lightweight (n=70)", "#0284c7", "solid", [t for t in telemetry_rows if t["sex"] == "M" and t["weight_class"] == "Lightweight"]),
-        ("Women Lightweight (n=32)", "#f43f5e", "solid", [t for t in telemetry_rows if t["sex"] == "W" and t["weight_class"] == "Lightweight"]),
-        ("Men Open/Hwt (n=131)", "#1d4ed8", "solid", [t for t in telemetry_rows if t["sex"] == "M" and t["weight_class"] == "Open/Heavyweight"]),
-        ("Women Open/Hwt (n=110)", "#be123c", "solid", [t for t in telemetry_rows if t["sex"] == "W" and t["weight_class"] == "Open/Heavyweight"]),
-        ("Flywheel Die-Off (n=95)", "#64748b", "dashed", [t for t in telemetry_rows if t["split_q1_s"] and t["split_q3_s"] and (t["split_q3_s"] - t["split_q1_s"]) >= 4.0]),
-    ]
-
-    for lbl, col, style, grp in rate_series:
-        if not grp:
-            continue
-        q_vals = [
-            mean([t["q1_spm"] for t in grp]),
-            mean([t["q2_spm"] for t in grp]),
-            mean([t["q3_spm"] for t in grp]),
-            mean([t["q4_spm"] for t in grp]),
-        ]
-        pts = [f"{map_qx(q+1, px0, px1):.1f},{map_yl(q_vals[q]):.1f}" for q in range(4)]
-        dash = 'stroke-dasharray="5,4"' if style == "dashed" else ""
-        svg.append(f'<polyline points="{" ".join(pts)}" fill="none" stroke="{col}" stroke-width="2.5" {dash} />')
-        for q in range(4):
-            cx, cy = map_qx(q+1, px0, px1), map_yl(q_vals[q])
-            svg.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4" fill="{col}" stroke="#ffffff" stroke-width="1" />')
-
-    # Legend inside Left panel
-    for i, (lbl, col, style, _) in enumerate(rate_series):
-        ly = py0 + 34 + i * 16
-        dash = 'stroke-dasharray="3,2"' if style == "dashed" else ""
-        svg.append(f'<line x1="{px0+12}" y1="{ly-4}" x2="{px0+28}" y2="{ly-4}" stroke="{col}" stroke-width="2.5" {dash} />')
-        svg.append(f'<text class="tick-label" x="{px0+34}" y="{ly}" fill="{col}" font-weight="600">{lbl}</text>')
-
-    # Right panel: Split Pace Change from Q1 (s/500m) + DPS change
-    rx0, rx1, ry0, ry1 = 545, 925, 80, 355
-    ymin_r, ymax_r = -2.0, 9.0
-
-    def map_yr(val):
-        return ry1 - (val - ymin_r) / (ymax_r - ymin_r) * (ry1 - ry0)
-
-    for yv in range(-2, 10, 2):
-        yp = map_yr(yv)
-        svg.append(f'<line class="grid" x1="{rx0}" y1="{yp:.1f}" x2="{rx1}" y2="{yp:.1f}" />')
-        svg.append(f'<text class="tick-label" x="{rx0-8}" y="{yp+4:.1f}" text-anchor="end">{yv:+.0f} s</text>')
-
-    # Zero line (even split benchmark)
-    y_zero = map_yr(0.0)
-    svg.append(f'<line x1="{rx0}" y1="{y_zero:.1f}" x2="{rx1}" y2="{y_zero:.1f}" stroke="#0f172a" stroke-width="1.2" stroke-dasharray="3,3" />')
-
-    for q in range(1, 5):
-        xp = map_qx(q, rx0, rx1)
-        svg.append(f'<line class="grid" x1="{xp:.1f}" y1="{ry0}" x2="{xp:.1f}" y2="{ry1}" />')
-        svg.append(f'<text class="tick-label" x="{xp:.1f}" y="{ry1+18}" text-anchor="middle">{q_labels[q-1]}</text>')
-
-    svg.append(f'<line class="axis" x1="{rx0}" y1="{ry0}" x2="{rx0}" y2="{ry1}" />')
-    svg.append(f'<line class="axis" x1="{rx0}" y1="{ry1}" x2="{rx1}" y2="{ry1}" />')
-    svg.append(f'<text class="axis-label" x="{(rx0+rx1)/2}" y="{ry1+42}" text-anchor="middle">2,000m Race Quarter</text>')
-    svg.append(f'<text class="axis-label" transform="translate(500, {(ry0+ry1)/2}) rotate(-90)" text-anchor="middle">Split Delta vs. Q1 (s/500m, Lower = Faster)</text>')
-    svg.append(f'<text class="annot" x="{rx0+8}" y="{ry0+16}">B. 500m Split Decay (Even Splitters vs. Flywheel Die-Off)</text>')
-
-    even_grp = [t for t in telemetry_rows if t["split_q1_s"] and t["split_q3_s"] and (t["split_q3_s"] - t["split_q1_s"]) <= 1.5]
-    mod_grp = [t for t in telemetry_rows if t["split_q1_s"] and t["split_q3_s"] and 1.5 < (t["split_q3_s"] - t["split_q1_s"]) < 4.0]
-    die_grp = [t for t in telemetry_rows if t["split_q1_s"] and t["split_q3_s"] and (t["split_q3_s"] - t["split_q1_s"]) >= 4.0]
-
-    decay_series = [
-        ("Even / Negative Splitters (Q3-Q1 ≤ +1.5s, n=194)", "#059669", even_grp),
-        ("Moderate Positive Split (+1.5s &lt; Q3-Q1 &lt; +4.0s, n=111)", "#d97706", mod_grp),
-        ("Severe Flywheel Die-Off (Q3-Q1 ≥ +4.0s, n=95)", "#dc2626", die_grp),
-    ]
-
-    for idx, (lbl, col, grp) in enumerate(decay_series):
-        if not grp:
-            continue
-        deltas = [
-            0.0,
-            mean([t["split_q2_s"] - t["split_q1_s"] for t in grp if t["split_q2_s"]]),
-            mean([t["split_q3_s"] - t["split_q1_s"] for t in grp if t["split_q3_s"]]),
-            mean([t["split_q4_s"] - t["split_q1_s"] for t in grp if t["split_q4_s"]]),
-        ]
-        pts = [f"{map_qx(q+1, rx0, rx1):.1f},{map_yr(deltas[q]):.1f}" for q in range(4)]
-        svg.append(f'<polyline points="{" ".join(pts)}" fill="none" stroke="{col}" stroke-width="2.8" />')
-        for q in range(4):
-            cx, cy = map_qx(q+1, rx0, rx1), map_yr(deltas[q])
-            svg.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4.5" fill="{col}" stroke="#ffffff" stroke-width="1.2" />')
-            if q in (2, 3):
-                svg.append(f'<text class="tick-label" x="{cx:.1f}" y="{cy-8:.1f}" text-anchor="middle" fill="{col}" font-weight="700">{deltas[q]:+.2f}s</text>')
-
-        ly = ry0 + 36 + idx * 18
-        svg.append(f'<line x1="{rx0+12}" y1="{ly-4}" x2="{rx0+28}" y2="{ly-4}" stroke="{col}" stroke-width="2.8" />')
-        svg.append(f'<text class="tick-label" x="{rx0+34}" y="{ly}" fill="{col}" font-weight="600">{lbl}</text>')
-
-    svg.append("</svg>")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text("\n".join(svg), encoding="utf-8")
+    # 3. Verify Catch Slip & Kleshnev HDF
+    slip = catch_slip_m(w_min, 12.5)
+    assert math.isclose(effective_drive_length_m(1.42, slip) + slip, 1.42, rel_tol=1e-14)
+    assert math.isclose(handle_drag_factor(600.0, 1.40, 0.70), 75.0, rel_tol=1e-14)
+    assert math.isclose(watts_from_split_500(100.0), 350.0, rel_tol=1e-13)
+    assert math.isclose(split_500_from_watts(350.0), 100.0, rel_tol=1e-13)
 
 
 def main():
-    summary_path = BASE_DIR / "crashb_2k_summary.csv"
-    telemetry_path = BASE_DIR / "crashb_quarter_telemetry.csv"
+    verify_math()
+    if "--test" in sys.argv:
+        print("evaluate_crashb.py: all mathematical assertions passed.")
+        return
 
-    with summary_path.open("r", encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
-
-    telemetry_rows = []
-    if telemetry_path.exists():
-        with telemetry_path.open("r", encoding="utf-8") as f:
-            telemetry_rows = list(csv.DictReader(f))
-
-    for r in rows:
-        r["finish_time_s"] = float(r["finish_time_s"])
-        r["avg_split_500_s"] = float(r["avg_split_500_s"])
-        r["avg_speed_ms"] = float(r["avg_speed_ms"])
-        r["avg_watts"] = float(r["avg_watts"])
-        r["avg_spm"] = float(r["avg_spm"])
-        r["dps_m"] = float(r["dps_m"])
-        r["work_per_stroke_j"] = float(r["work_per_stroke_j"])
-        r["est_height_cm"] = float(r["est_height_cm"])
-        r["est_drive_length_m"] = float(r["est_drive_length_m"])
-        r["verified_h"] = float(r["verified_height_cm"]) if r["verified_height_cm"] != "" else None
-        for q in ("split_q1_s", "split_q2_s", "split_q3_s", "split_q4_s"):
-            r[q] = float(r[q]) if r[q] not in ("", None) else None
-
-    for tr in telemetry_rows:
-        for k in (
-            "finish_time_s", "avg_watts", "avg_spm", "est_height_cm", "est_drive_length_m",
-            "q1_spm", "q2_spm", "q3_spm", "q4_spm", "q1_dps_m", "q2_dps_m", "q3_dps_m", "q4_dps_m",
-        ):
-            tr[k] = float(tr[k])
-        for k in ("start_100m_spm", "sprint_250m_spm", "split_q1_s", "split_q2_s", "split_q3_s", "split_q4_s"):
-            tr[k] = float(tr[k]) if tr[k] not in ("", None) else None
-        tr["verified_h"] = float(tr["verified_height_cm"]) if tr["verified_height_cm"] != "" else None
+    df = pd.read_csv(BASE_DIR / "crashb_2k_summary.csv")
+    tel_path = BASE_DIR / "crashb_quarter_telemetry.csv"
+    tel_df = pd.read_csv(tel_path) if tel_path.exists() else pd.DataFrame()
 
     # =========================================================================
-    # 1. VERIFIED HEIGHT COHORT EVALUATION (Height / Drive Length vs. Rate & Time)
+    # 1. VERIFIED HEIGHT COHORT EVALUATION (De-confounded by Weight Class)
     # =========================================================================
-    verified_rows = [r for r in rows if r["verified_h"] is not None]
-    ver_m = [r for r in verified_rows if r["sex"] == "M"]
-    ver_w = [r for r in verified_rows if r["sex"] == "W"]
+    ver_df = df.dropna(subset=["verified_height_cm"]).copy()
+    ver_m = ver_df[ver_df["sex"] == "M"]
+    ver_w = ver_df[ver_df["sex"] == "W"]
+    ver_m_hwt = ver_m[ver_m["weight_class"] == "Open/Heavyweight"]
+    ver_m_lwt = ver_m[ver_m["weight_class"].isin(["Lightweight", "Flyweight"])]
+    ver_w_hwt = ver_w[ver_w["weight_class"] == "Open/Heavyweight"]
 
-    corr_m_h_spm = pearson_r([r["verified_h"] for r in ver_m], [r["avg_spm"] for r in ver_m])
-    corr_m_h_work = pearson_r([r["verified_h"] for r in ver_m], [r["work_per_stroke_j"] for r in ver_m])
-    corr_m_h_watts = pearson_r([r["verified_h"] for r in ver_m], [r["avg_watts"] for r in ver_m])
-    corr_m_h_time = pearson_r([r["verified_h"] for r in ver_m], [r["finish_time_s"] for r in ver_m])
+    corr_m_h_spm = ols_summary(ver_m["verified_height_cm"], ver_m["avg_spm"])
+    corr_m_h_work = ols_summary(ver_m["verified_height_cm"], ver_m["work_per_stroke_j"])
+    corr_m_h_watts = ols_summary(ver_m["verified_height_cm"], ver_m["avg_watts"])
+    corr_m_h_time = ols_summary(ver_m["verified_height_cm"], ver_m["finish_time_s"])
 
-    corr_w_h_spm = pearson_r([r["verified_h"] for r in ver_w], [r["avg_spm"] for r in ver_w])
-    corr_w_h_work = pearson_r([r["verified_h"] for r in ver_w], [r["work_per_stroke_j"] for r in ver_w])
-    corr_w_h_watts = pearson_r([r["verified_h"] for r in ver_w], [r["avg_watts"] for r in ver_w])
-    corr_w_h_time = pearson_r([r["verified_h"] for r in ver_w], [r["finish_time_s"] for r in ver_w])
+    corr_m_hwt_spm = ols_summary(ver_m_hwt["verified_height_cm"], ver_m_hwt["avg_spm"])
+    corr_m_hwt_work = ols_summary(ver_m_hwt["verified_height_cm"], ver_m_hwt["work_per_stroke_j"])
+    corr_m_lwt_spm = ols_summary(ver_m_lwt["verified_height_cm"], ver_m_lwt["avg_spm"])
+
+    corr_w_h_spm = ols_summary(ver_w["verified_height_cm"], ver_w["avg_spm"])
+    corr_w_h_work = ols_summary(ver_w["verified_height_cm"], ver_w["work_per_stroke_j"])
+    corr_w_h_watts = ols_summary(ver_w["verified_height_cm"], ver_w["avg_watts"])
+    corr_w_h_time = ols_summary(ver_w["verified_height_cm"], ver_w["finish_time_s"])
+    corr_w_hwt_spm = ols_summary(ver_w_hwt["verified_height_cm"], ver_w_hwt["avg_spm"])
+    corr_w_hwt_work = ols_summary(ver_w_hwt["verified_height_cm"], ver_w_hwt["work_per_stroke_j"])
 
     height_bands = [
-        ("M", "Very Tall Men (>= 198 cm / 6'6\"+)", lambda r: r["sex"] == "M" and r["verified_h"] >= 198.0),
-        ("M", "Tall Men (190 - 197 cm / 6'3\" - 6'5.5\")", lambda r: r["sex"] == "M" and 190.0 <= r["verified_h"] < 198.0),
-        ("M", "Medium / Lwt Men (<= 189 cm / <= 6'2\")", lambda r: r["sex"] == "M" and r["verified_h"] < 190.0),
-        ("W", "Tall Women (>= 185 cm / 6'1\"+)", lambda r: r["sex"] == "W" and r["verified_h"] >= 185.0),
-        ("W", "Medium-Tall Women (178 - 184 cm / 5'10\" - 6'0.5\")", lambda r: r["sex"] == "W" and 178.0 <= r["verified_h"] < 185.0),
-        ("W", "Shorter / Lwt Women (< 178 cm / <= 5'9\")", lambda r: r["sex"] == "W" and r["verified_h"] < 178.0),
+        ("M", "Very Tall Men (>= 198 cm / 6'6\"+)", ver_m[ver_m["verified_height_cm"] >= 198.0]),
+        ("M", "Tall Men (190 - 197 cm / 6'3\" - 6'5.5\")", ver_m[(ver_m["verified_height_cm"] >= 190.0) & (ver_m["verified_height_cm"] < 198.0)]),
+        ("M", "Medium / Lwt Men (< 190 cm / <= 6'2\")", ver_m[ver_m["verified_height_cm"] < 190.0]),
+        ("W", "Tall Women (>= 185 cm / 6'1\"+)", ver_w[ver_w["verified_height_cm"] >= 185.0]),
+        ("W", "Medium-Tall Women (178 - 184 cm / 5'10\" - 6'0.5\")", ver_w[(ver_w["verified_height_cm"] >= 178.0) & (ver_w["verified_height_cm"] < 185.0)]),
+        ("W", "Shorter / Lwt Women (< 178 cm / <= 5'9\")", ver_w[ver_w["verified_height_cm"] < 178.0]),
     ]
 
     height_summary_rows = []
-    for sex, label, pred in height_bands:
-        sub = [r for r in verified_rows if pred(r)]
-        if not sub:
+    for sex, label, sub in height_bands:
+        if len(sub) == 0:
             continue
         height_summary_rows.append({
             "sex": sex,
             "stature_band": label,
             "n_races": len(sub),
-            "mean_height_cm": round(mean([r["verified_h"] for r in sub]), 1),
-            "mean_est_drive_length_m": round(mean([r["est_drive_length_m"] for r in sub]), 3),
-            "mean_spm": round(mean([r["avg_spm"] for r in sub]), 2),
-            "sd_spm": round(stdev([r["avg_spm"] for r in sub]), 2),
-            "mean_finish_time_s": round(mean([r["finish_time_s"] for r in sub]), 1),
-            "mean_split_500": format_split(mean([r["avg_split_500_s"] for r in sub])),
-            "mean_watts": round(mean([r["avg_watts"] for r in sub]), 1),
-            "mean_work_per_stroke_j": round(mean([r["work_per_stroke_j"] for r in sub]), 1),
-            "mean_dps_m": round(mean([r["dps_m"] for r in sub]), 2),
+            "mean_height_cm": round(float(sub["verified_height_cm"].mean()), 1),
+            "mean_est_drive_length_m": round(float(sub["est_drive_length_m"].mean()), 3),
+            "mean_spm": round(float(sub["avg_spm"].mean()), 2),
+            "sd_spm": round(float(sub["avg_spm"].std(ddof=1)), 2) if len(sub) > 1 else 0.0,
+            "mean_finish_time_s": round(float(sub["finish_time_s"].mean()), 1),
+            "mean_split_500": format_split(sub["avg_split_500_s"].mean()),
+            "mean_watts": round(float(sub["avg_watts"].mean()), 1),
+            "mean_work_per_stroke_j": round(float(sub["work_per_stroke_j"].mean()), 1),
+            "mean_dps_m": round(float(sub["dps_m"].mean()), 2),
         })
 
     out_height_csv = BASE_DIR / "eval_height_vs_rate_summary.csv"
-    with out_height_csv.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=list(height_summary_rows[0].keys()))
-        w.writeheader()
-        w.writerows(height_summary_rows)
+    pd.DataFrame(height_summary_rows).to_csv(out_height_csv, index=False)
 
     # =========================================================================
-    # 2. FULL DATASET CATEGORY EVALUATION (N = 3,565 2,000m races)
+    # 2. FULL DATASET CATEGORY EVALUATION
     # =========================================================================
-    cat_groups = defaultdict(list)
-    for r in rows:
-        cat_groups[(r["sex"], r["weight_class"], r["age_category"])].append(r)
-
     cat_summary_rows = []
-    for (sex, wc, age_cat), grp in sorted(cat_groups.items()):
+    for (sex, wc, age_cat), grp in df.groupby(["sex", "weight_class", "age_category"]):
         if len(grp) < 3:
             continue
-        grp_sorted = sorted(grp, key=lambda x: x["finish_time_s"])
-        top25 = grp_sorted[: max(3, len(grp_sorted) // 4)]
-
-        r_val, slope, _, _, p_val = pearson_r(
-            [x["avg_spm"] for x in grp],
-            [x["finish_time_s"] for x in grp],
-        )
-
+        grp_sorted = grp.sort_values("finish_time_s")
+        top25 = grp_sorted.iloc[: max(3, len(grp_sorted) // 4)]
+        r_val, _, _, _, p_val = ols_summary(grp["avg_spm"], grp["finish_time_s"])
         cat_summary_rows.append({
             "sex": sex,
             "weight_class": wc,
             "age_category": age_cat,
             "n_total": len(grp),
-            "est_height_cm": round(mean([x["est_height_cm"] for x in grp]), 1),
-            "est_drive_length_m": round(mean([x["est_drive_length_m"] for x in grp]), 3),
-            "mean_spm_all": round(mean([x["avg_spm"] for x in grp]), 2),
-            "sd_spm_all": round(stdev([x["avg_spm"] for x in grp]), 2),
-            "mean_time_s_all": round(mean([x["finish_time_s"] for x in grp]), 1),
-            "mean_split_all": format_split(mean([x["avg_split_500_s"] for x in grp])),
-            "mean_watts_all": round(mean([x["avg_watts"] for x in grp]), 1),
-            "mean_work_j_all": round(mean([x["work_per_stroke_j"] for x in grp]), 1),
-            "top25_mean_spm": round(mean([x["avg_spm"] for x in top25]), 2),
-            "top25_mean_time_s": round(mean([x["finish_time_s"] for x in top25]), 1),
-            "top25_mean_split": format_split(mean([x["avg_split_500_s"] for x in top25])),
-            "top25_mean_watts": round(mean([x["avg_watts"] for x in top25]), 1),
-            "top25_mean_work_j": round(mean([x["work_per_stroke_j"] for x in top25]), 1),
+            "mean_spm_all": round(float(grp["avg_spm"].mean()), 2),
+            "sd_spm_all": round(float(grp["avg_spm"].std(ddof=1)), 2),
+            "mean_time_s_all": round(float(grp["finish_time_s"].mean()), 1),
+            "mean_split_all": format_split(grp["avg_split_500_s"].mean()),
+            "mean_watts_all": round(float(grp["avg_watts"].mean()), 1),
+            "mean_work_j_all": round(float(grp["work_per_stroke_j"].mean()), 1),
+            "top25_mean_spm": round(float(top25["avg_spm"].mean()), 2),
+            "top25_mean_time_s": round(float(top25["finish_time_s"].mean()), 1),
+            "top25_mean_split": format_split(top25["avg_split_500_s"].mean()),
+            "top25_mean_watts": round(float(top25["avg_watts"].mean()), 1),
+            "top25_mean_work_j": round(float(top25["work_per_stroke_j"].mean()), 1),
             "corr_spm_vs_time_r": round(r_val, 3) if not math.isnan(r_val) else "",
             "corr_spm_vs_time_p": round(p_val, 4) if not math.isnan(p_val) else "",
         })
 
+    cat_df = pd.DataFrame(cat_summary_rows)
     out_cat_csv = BASE_DIR / "eval_category_summary.csv"
-    with out_cat_csv.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=list(cat_summary_rows[0].keys()))
-        w.writeheader()
-        w.writerows(cat_summary_rows)
+    cat_df.to_csv(out_cat_csv, index=False)
 
     # =========================================================================
-    # 3. QUARTER-BY-QUARTER PM5 TELEMETRY PACING & DIE-OFF EVALUATION
+    # 3. QUARTER-BY-QUARTER PM5 TELEMETRY EVALUATION
     # =========================================================================
     pacing_summary_rows = []
-    if telemetry_rows:
+    if len(tel_df) > 0:
+        valid_q = tel_df.dropna(subset=["split_q1_s", "split_q3_s"]).copy()
+        valid_q["q3_q1_delta"] = valid_q["split_q3_s"] - valid_q["split_q1_s"]
+
         t_groups = [
-            ("Men Open/Heavyweight (All Telemetry)", [t for t in telemetry_rows if t["sex"] == "M" and t["weight_class"] == "Open/Heavyweight"]),
-            ("Men Lightweight (All Telemetry)", [t for t in telemetry_rows if t["sex"] == "M" and t["weight_class"] == "Lightweight"]),
-            ("Men Flyweight (All Telemetry)", [t for t in telemetry_rows if t["sex"] == "M" and t["weight_class"] == "Flyweight"]),
-            ("Women Open/Heavyweight (All Telemetry)", [t for t in telemetry_rows if t["sex"] == "W" and t["weight_class"] == "Open/Heavyweight"]),
-            ("Women Lightweight (All Telemetry)", [t for t in telemetry_rows if t["sex"] == "W" and t["weight_class"] == "Lightweight"]),
-            ("Women Flyweight (All Telemetry)", [t for t in telemetry_rows if t["sex"] == "W" and t["weight_class"] == "Flyweight"]),
-            (
-                "Even/Negative Splitters (Q3-Q1 <= +1.5s)",
-                [t for t in telemetry_rows if t["split_q1_s"] and t["split_q3_s"] and (t["split_q3_s"] - t["split_q1_s"]) <= 1.5],
-            ),
-            (
-                "Severe Flywheel Die-Off (Q3-Q1 >= +4.0s)",
-                [t for t in telemetry_rows if t["split_q1_s"] and t["split_q3_s"] and (t["split_q3_s"] - t["split_q1_s"]) >= 4.0],
-            ),
+            ("Men Open/Heavyweight (All Telemetry)", tel_df[(tel_df["sex"] == "M") & (tel_df["weight_class"] == "Open/Heavyweight")]),
+            ("Men Lightweight (All Telemetry)", tel_df[(tel_df["sex"] == "M") & (tel_df["weight_class"] == "Lightweight")]),
+            ("Men Flyweight (All Telemetry)", tel_df[(tel_df["sex"] == "M") & (tel_df["weight_class"] == "Flyweight")]),
+            ("Women Open/Heavyweight (All Telemetry)", tel_df[(tel_df["sex"] == "W") & (tel_df["weight_class"] == "Open/Heavyweight")]),
+            ("Women Lightweight (All Telemetry)", tel_df[(tel_df["sex"] == "W") & (tel_df["weight_class"] == "Lightweight")]),
+            ("Women Flyweight (All Telemetry)", tel_df[(tel_df["sex"] == "W") & (tel_df["weight_class"] == "Flyweight")]),
+            ("Even/Negative Split Tier (Condition: Q3-Q1 <= +1.5s)", valid_q[valid_q["q3_q1_delta"] <= 1.5]),
+            ("Severe Positive-Split Fade Tier (Condition: Q3-Q1 >= +4.0s)", valid_q[valid_q["q3_q1_delta"] >= 4.0]),
         ]
 
         for label, grp in t_groups:
-            if not grp:
+            if len(grp) == 0:
                 continue
-            q1_splits = [t["split_q1_s"] for t in grp if t["split_q1_s"]]
-            q2_splits = [t["split_q2_s"] for t in grp if t["split_q2_s"]]
-            q3_splits = [t["split_q3_s"] for t in grp if t["split_q3_s"]]
-            q4_splits = [t["split_q4_s"] for t in grp if t["split_q4_s"]]
+            q1_s = grp["split_q1_s"].dropna()
+            q2_s = grp["split_q2_s"].dropna()
+            q3_s = grp["split_q3_s"].dropna()
+            q4_s = grp["split_q4_s"].dropna()
             pacing_summary_rows.append({
                 "cohort": label,
                 "n_races": len(grp),
-                "mean_est_drive_len_m": round(mean([t["est_drive_length_m"] for t in grp]), 3),
-                "q1_spm": round(mean([t["q1_spm"] for t in grp]), 2),
-                "q2_spm": round(mean([t["q2_spm"] for t in grp]), 2),
-                "q3_spm": round(mean([t["q3_spm"] for t in grp]), 2),
-                "q4_spm": round(mean([t["q4_spm"] for t in grp]), 2),
-                "q1_dps_m": round(mean([t["q1_dps_m"] for t in grp]), 2),
-                "q2_dps_m": round(mean([t["q2_dps_m"] for t in grp]), 2),
-                "q3_dps_m": round(mean([t["q3_dps_m"] for t in grp]), 2),
-                "q4_dps_m": round(mean([t["q4_dps_m"] for t in grp]), 2),
-                "q1_split_s": round(mean(q1_splits), 2) if q1_splits else "",
-                "q2_split_s": round(mean(q2_splits), 2) if q2_splits else "",
-                "q3_split_s": round(mean(q3_splits), 2) if q3_splits else "",
-                "q4_split_s": round(mean(q4_splits), 2) if q4_splits else "",
-                "q3_minus_q1_split_s": round(mean(q3_splits) - mean(q1_splits), 2) if (q1_splits and q3_splits) else "",
-                "q3_minus_q2_dps_m": round(mean([t["q3_dps_m"] - t["q2_dps_m"] for t in grp]), 3),
+                "q1_spm": round(float(grp["q1_spm"].mean()), 2),
+                "q2_spm": round(float(grp["q2_spm"].mean()), 2),
+                "q3_spm": round(float(grp["q3_spm"].mean()), 2),
+                "q4_spm": round(float(grp["q4_spm"].mean()), 2),
+                "q1_dps_m": round(float(grp["q1_dps_m"].mean()), 2),
+                "q2_dps_m": round(float(grp["q2_dps_m"].mean()), 2),
+                "q3_dps_m": round(float(grp["q3_dps_m"].mean()), 2),
+                "q4_dps_m": round(float(grp["q4_dps_m"].mean()), 2),
+                "q1_split_s": round(float(q1_s.mean()), 2) if len(q1_s) else "",
+                "q2_split_s": round(float(q2_s.mean()), 2) if len(q2_s) else "",
+                "q3_split_s": round(float(q3_s.mean()), 2) if len(q3_s) else "",
+                "q4_split_s": round(float(q4_s.mean()), 2) if len(q4_s) else "",
+                "q3_minus_q1_split_s": round(float(q3_s.mean() - q1_s.mean()), 2) if (len(q1_s) and len(q3_s)) else "",
+                "q3_minus_q2_dps_m": round(float((grp["q3_dps_m"] - grp["q2_dps_m"]).mean()), 3),
             })
 
         out_pacing_csv = BASE_DIR / "eval_telemetry_pacing_summary.csv"
-        with out_pacing_csv.open("w", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=list(pacing_summary_rows[0].keys()))
-            w.writeheader()
-            w.writerows(pacing_summary_rows)
+        pd.DataFrame(pacing_summary_rows).to_csv(out_pacing_csv, index=False)
 
     # =========================================================================
-    # 4. GENERATE VECTOR SVG CHARTS IN data/charts/
+    # 4. GENERATE VECTOR SVG CHARTS VIA MATPLOTLIB
     # =========================================================================
-    c1_path = CHARTS_DIR / "height_vs_spm_and_work.svg"
-    c2_path = CHARTS_DIR / "category_operating_map.svg"
-    c3_path = CHARTS_DIR / "within_class_spm_vs_split.svg"
-    c4_path = CHARTS_DIR / "telemetry_quarters_pacing.svg"
-
-    generate_chart_1_height_vs_spm_and_work(
-        ver_m, ver_w, corr_m_h_spm, corr_w_h_spm, corr_m_h_work, corr_w_h_work, c1_path
-    )
-    generate_chart_2_category_operating_map(cat_summary_rows, c2_path)
-    generate_chart_3_within_class_spm_vs_split(rows, c3_path)
-    if telemetry_rows:
-        generate_chart_4_telemetry_quarters(telemetry_rows, c4_path)
+    generate_chart_1(ver_df, CHARTS_DIR / "height_vs_spm_and_work.svg")
+    generate_chart_2(cat_df, CHARTS_DIR / "category_operating_map.svg")
+    generate_chart_3(df, CHARTS_DIR / "within_class_spm_vs_split.svg")
+    if len(tel_df) > 0:
+        generate_chart_4(tel_df, CHARTS_DIR / "telemetry_quarters_pacing.svg")
 
     # =========================================================================
-    # 5. GENERATE MARKDOWN DOCUMENTATION REPORT WITH EMBEDDED CHARTS
+    # 5. GENERATE MARKDOWN REPORT WITH DYNAMICALLY COMPUTED METRICS
     # =========================================================================
+    vt_men = ver_m[ver_m["verified_height_cm"] >= 198.0]
+    n_vt_above_950 = int((vt_men["work_per_stroke_j"] > 950.0).sum())
+    n_unique_heights = int(ver_df["athlete_id"].nunique())
+
+    open_u23_cats = cat_df[cat_df["age_category"].isin(["Open/Senior", "U23"])].copy()
+    open_u23_rs = [float(x) for x in open_u23_cats["corr_spm_vs_time_r"] if x != ""]
+    all_rs = [float(x) for x in cat_df["corr_spm_vs_time_r"] if x != ""]
+
+    lwt_open_m = cat_df[(cat_df["sex"] == "M") & (cat_df["weight_class"] == "Lightweight") & (cat_df["age_category"] == "Open/Senior")].iloc[0]
+    lwt_u23_m = cat_df[(cat_df["sex"] == "M") & (cat_df["weight_class"] == "Lightweight") & (cat_df["age_category"] == "U23")].iloc[0]
+    hwt_open_m = cat_df[(cat_df["sex"] == "M") & (cat_df["weight_class"] == "Open/Heavyweight") & (cat_df["age_category"] == "Open/Senior")].iloc[0]
+    hwt_u23_m = cat_df[(cat_df["sex"] == "M") & (cat_df["weight_class"] == "Open/Heavyweight") & (cat_df["age_category"] == "U23")].iloc[0]
+
     report_path = DOCS_DIR / "04-crash-b-empirical-analysis.md"
     lines = [
-        "# Empirical Validation: C.R.A.S.H.-B. & World Indoor Championship Data (2018–2026)",
+        "# Empirical Analysis: C.R.A.S.H.-B. & World Indoor Championship Data (2018–2026)",
         "",
-        "This document summarizes the empirical findings from **3,565 individual 2,000m championship race records** and **400 high-resolution PM5 stroke-by-stroke race telemetry logs** harvested from the **C.R.A.S.H.-B. Sprints (2018, 2019, 2020, 2022, 2023, 2025, 2026)** and the **World Rowing Indoor Championships (WRIC 2019)**.",
+        f"This document summarizes the empirical findings from **{len(df):,} individual 2,000m championship race records** and **{len(tel_df):,} 1 Hz PM5 race-chart telemetry logs** harvested from the **C.R.A.S.H.-B. Sprints (2018, 2019, 2020, 2022, 2023, 2025, 2026)** and the **World Rowing Indoor Championships (WRIC 2019)**.",
         "",
-        "All scripts, reproducible Makefile targets, generated vector SVG charts (`data/charts/*.svg`), and anonymized summary CSVs (with athlete identities replaced by one-way SHA-256 digests and raw HTML/JSON excluded from Git) live in the [`data/`](../data/) directory.",
+        "*(Note: The 2021 and 2024 C.R.A.S.H.-B. editions are not hosted on the Time-Team regatta server and are not included in this dataset.)*",
         "",
         "---",
         "",
-        "## 1. Dataset Architecture & Methodology",
+        "## 1. Scope, Methodological Limitations & Dataset Architecture",
+        "",
+        "> [!IMPORTANT]",
+        "> **What This Dataset Can and Cannot Test:**",
+        "> 1. **No Direct Drag Factor ($k$) or Handle Drive-Length ($L$) Telemetry:** Public Time-Team race results and 1 Hz PM5 race charts record split times, average power ($P = 2.80 v^3$), stroke rate (`spm`), speed ($v$), Distance Per Stroke ($\\text{DPS}$), and Work Per Stroke ($W_{\\text{stroke}}$). They **do not** log the PM5 Drag Factor ($k$), physical handle travel ($L_{\\text{effective}}$), or catch slip ($L_{\\text{slip}}$). Therefore, this empirical analysis evaluates the **rate ($R$) vs. work-per-stroke ($W_{\\text{stroke}}$) operating map across stature/weight classes** and **quarter-by-quarter pacing trajectories**, rather than directly testing drag-factor settings.",
+        f"> 2. **Verified Heights Only ($n = {len(ver_df)}$ starts across {n_unique_heights} athletes):** Physical stature (`verified_height_cm`) and estimated reach ($L_{{\\text{{est}}}} = 0.0078 \\cdot H_{{\\text{{cm}}}} - 0.08\\text{{ m}}$) are populated **strictly** for athletes matched to public [Wikidata SPARQL, Olympic/Olympedia, and NCAA/IRA collegiate varsity rosters](03-references-and-literature.md#6-empirical-regatta--anthropometric-height-data-sources) via [`data/build_athlete_heights.py`](../data/build_athlete_heights.py) using `rapidfuzz` token normalization. Unverified rowers have no fabricated height values and are analyzed solely by their recorded competition category (`sex`, `weight_class`, `age_category`).",
+        "> 3. **Pseudonymization:** Athlete names are replaced upon ingestion with a 12-character keyed SHA-256 pseudonym (`athlete_id`). Because public regatta finish times and event codes are inherently linkable to public results pages, this dataset is **pseudonymized** rather than k-anonymous.",
+        "> 4. **C.R.A.S.H.-B. & WRIC Drag Factor Rules (\"The Charley Butt Rule\"):** Contrary to a common misconception, C.R.A.S.H.-B. Sprints and WRIC rules **do not mandate a 130–140 drag factor**. Competitors may set the damper/drag factor to **any value they choose** prior to the start, provided it is not adjusted after the race begins ([C.R.A.S.H.-B. Official Rules & FAQ](03-references-and-literature.md#crash-b-sprints-official-drag-factor-faq--the-charley-butt-rule)). (Strict 125–140 or fixed-130 requirements come instead from national federation testing protocols such as British Rowing, Rowing Australia, and Rowing Canada; see [Section 5 of References](03-references-and-literature.md#5-championship-regatta-rules--national-federation-testing-protocols).)",
         "",
         "| Dataset / Artifact | Records | Description |",
         "| :--- | :--- | :--- |",
-        f"| [`data/crashb_2k_summary.csv`](../data/crashb_2k_summary.csv) | **{len(rows):,}** | All individual 2,000m non-adaptive race results with 500m splits, Watts ($P = 2.80 v^3$), average stroke rate (`avg_spm`), Distance Per Stroke ($\\text{{DPS}}$), Work Per Stroke ($W_{{\\text{{stroke}}}}$), and stature/drive-length estimates. |",
-        f"| [`data/athlete_heights.csv`](../data/athlete_heights.csv) | **62** (69 races) | Verified physical heights (`height_cm`) from World Rowing, Olympic, USRowing, and NCAA/IRA varsity rosters, keyed strictly by one-way SHA-256 `athlete_id` hash. |",
-        f"| [`data/crashb_quarter_telemetry.csv`](../data/crashb_quarter_telemetry.csv) | **{len(telemetry_rows):,}** | Quarter-by-quarter ($Q_1 \\dots Q_4$) stroke rate ($R_{{Q1}} \\dots R_{{Q4}}$), speed, and distance-per-stroke extracted from 1 Hz PM5 race-chart telemetry. |",
-        "| [`data/eval_height_vs_rate_summary.csv`](../data/eval_height_vs_rate_summary.csv) | **6** bands | Aggregated evaluation of verified height ($H$) and estimated drive length ($L$) vs. stroke rate ($R$), work per stroke, and 2k speed. |",
-        "| [`data/eval_category_summary.csv`](../data/eval_category_summary.csv) | **23** categories | Full breakdown across Sex, Weight Class (`Open/Heavyweight`, `Lightweight`, `Flyweight`), and Age Category (`U15`, `U17`, `U19`, `U23`, `Open`, `Masters`). |",
-        "| [`data/eval_telemetry_pacing_summary.csv`](../data/eval_telemetry_pacing_summary.csv) | **8** cohorts | Quarter-by-quarter pacing, rate progression, and flywheel split decay evaluation. |",
-        "| [`data/charts/*.svg`](../data/charts/) | **4** charts | Vector SVG charts generated automatically by [`data/evaluate_crashb.py`](../data/evaluate_crashb.py). |",
-        "",
-        "### Generated Visual Charts (`data/charts/*.svg`)",
-        "1. **[`data/charts/height_vs_spm_and_work.svg`](../data/charts/height_vs_spm_and_work.svg)** — Dual-panel scatter and OLS regression plot of the verified-height championship cohort ($n = 69$ starts):",
-        "   * **Panel A (Height vs. Stroke Rate):** Plots rower height ($H$) and estimated drive length ($L_{\\text{est}}$) against average 2,000m stroke rate ($R$), illustrating the negative cadence slope ($-1.1\\text{ spm}$ per $+10\\text{ cm}$ for Men, $-0.9\\text{ spm}$ per $+10\\text{ cm}$ for Women) as shorter athletes rate higher to compensate for shorter stroke length.",
-        "   * **Panel B (Height vs. Work per Stroke):** Plots rower height ($H$) against mechanical work per stroke ($W_{\\text{stroke}}$ in Joules), illustrating the steep leverage advantage of taller rowers ($+109\\text{ J/stroke}$ per $+10\\text{ cm}$ for Men, $r = +0.87$; $+83\\text{ J/stroke}$ per $+10\\text{ cm}$ for Women, $r = +0.84$).",
-        "2. **[`data/charts/category_operating_map.svg`](../data/charts/category_operating_map.svg)** — Biomechanical Operating Map plotting Top-25% Work per Stroke ($W_{\\text{stroke}}$) vs. Stroke Rate ($R$) across all stature/weight categories (`Open/Heavyweight`, `Lightweight`, `Flyweight` across `Open`, `U23`, `U19`, `U17`, and `Masters`) overlaid against Iso-Power contours ($P = W_{\\text{stroke}} \\cdot R / 60$ from $200\\text{ W}$ to $500\\text{ W}$).",
-        "3. **[`data/charts/within_class_spm_vs_split.svg`](../data/charts/within_class_spm_vs_split.svg)** — Binned progression curves across the non-Masters championship field ($n = 1,789$ starts) demonstrating that *within* any fixed stature/weight class (`Open/Heavyweight Men`, `Lightweight Men`, `Open/Heavyweight Women`, `Lightweight Women`), higher sustained stroke rate directly produces faster 500m split pace ($r = -0.26$ to $-0.78$).",
-        "4. **[`data/charts/telemetry_quarters_pacing.svg`](../data/charts/telemetry_quarters_pacing.svg)** — Dual-panel 1 Hz PM5 race-chart telemetry plot ($n = 400$ logs):",
-        "   * **Panel A (Parabolic Rate Curve):** Shows how competitors settle by $1.0\\text{–}1.5\\text{ spm}$ in $Q_2/Q_3$ after the $Q_1$ start to preserve effective drive length ($L_{\\text{effective}}$) before sprinting at $+2.5\\text{ to }+4.0\\text{ spm}$ in $Q_4$.",
-        "   * **Panel B (500m Split Decay $Q_i - Q_1$):** Compares **Even/Negative Splitters** ($Q_3 - Q_1 \\le +1.5\\text{ s}$, averaging $+0.05\\text{ s}$ in $Q_3$) against **Moderate Positive Splitters** and **Severe Flywheel Die-Off** ($Q_3 - Q_1 \\ge +4.0\\text{ s}$, averaging $+7.98\\text{ s}$ split decay in $Q_3$).",
-        "",
-        "### Height as an Anthropometric Proxy for Stroke Length ($L$)",
-        "Because Concept2 race results report cumulative split times and stroke rate (`spm`) rather than raw handle travel ($L$ in meters), we evaluate **stature ($H$) as a mechanical proxy for maximum effective drive length ($L_{\\text{total}}$)** via two complementary methods:",
-        "1. **Direct Roster Verification ($n = 69$ championship starts):** Cross-referencing championship finalists against published Olympic, World Rowing, USRowing, and collegiate varsity rosters using a one-way SHA-256 hash (`athlete_id`), modeling physical reach via Kleshnev's anthropometric scaling ($L_{\\text{est}} \\approx 0.0078 \\cdot H_{\\text{cm}} - 0.08\\text{ m}$).",
-        "2. **Structural Weight & Age Tiers ($N = 3,565$ starts):** Comparing `Open/Heavyweight` vs. `Lightweight` ($\\le 75\\text{ kg}$ men / $\\le 61.5\\text{ kg}$ women) vs. `Flyweight` ($\\le 65.8\\text{ kg}$ men / $\\le 54.4\\text{ kg}$ women), as well as developmental stature progression (`U15` $\\to$ `U17` $\\to$ `U19` $\\to$ `U23/Open`).",
+        f"| [`data/crashb_2k_summary.csv`](../data/crashb_2k_summary.csv) | **{len(df):,}** | All individual 2,000m non-adaptive race results across 8 regatta editions with 500m splits, Watts ($P = 2.80 v^3$), average stroke rate (`avg_spm`), Distance Per Stroke ($\\text{{DPS}}$), and Work Per Stroke ($W_{{\\text{{stroke}}}}$). |",
+        f"| [`data/athlete_heights.csv`](../data/athlete_heights.csv) | **{n_unique_heights}** ({len(ver_df)} races) | Reproducible lookup table of verified physical heights (`height_cm`) downloaded and matched by [`data/build_athlete_heights.py`](../data/build_athlete_heights.py), keyed by pseudonymized `athlete_id`. |",
+        f"| [`data/crashb_quarter_telemetry.csv`](../data/crashb_quarter_telemetry.csv) | **{len(tel_df):,}** | Quarter-by-quarter ($Q_1 \\dots Q_4$) stroke rate ($R_{{Q1}} \\dots R_{{Q4}}$), speed, and distance-per-stroke extracted from 1 Hz PM5 race-chart telemetry (enriched for Open/Senior, U23, Lightweight, and podium heats). |",
+        f"| [`data/eval_height_vs_rate_summary.csv`](../data/eval_height_vs_rate_summary.csv) | **{len(height_summary_rows)}** bands | Aggregated evaluation of verified height ($H$) vs. stroke rate ($R$), work per stroke, and 2k speed. |",
+        f"| [`data/eval_category_summary.csv`](../data/eval_category_summary.csv) | **{len(cat_df)}** categories | Breakdown across Sex, Weight Class (`Open/Heavyweight`, `Lightweight`, `Flyweight`), and Age Category (`U15`, `U17`, `U19`, `U23`, `Open/Senior`, `Masters`). |",
+        f"| [`data/eval_telemetry_pacing_summary.csv`](../data/eval_telemetry_pacing_summary.csv) | **{len(pacing_summary_rows)}** cohorts | Quarter-by-quarter cadence and split pacing evaluation. |",
+        "| [`data/charts/*.svg`](../data/charts/) | **4** charts | Vector SVG charts generated via `matplotlib` by [`data/evaluate_crashb.py`](../data/evaluate_crashb.py). |",
         "",
         "---",
         "",
-        "## 2. Finding 1: Verified Height ($H$) & Stroke Length ($L$) vs. Stroke Rate ($R$)",
-        "",
-        "Across the verified-height championship cohort ($n = 69$ race starts spanning $167.6\\text{ cm}$ to $208.3\\text{ cm}$), **taller rowers with longer stroke length ($L$) achieve faster 2,000m times at significantly lower stroke rates ($R$) because their Work Per Stroke ($W_{\\text{stroke}}$) scales steeply with height:**",
+        f"## 2. Finding 1: Verified Height ($H$) vs. Stroke Rate ($R$) & Work per Stroke ($n = {len(ver_df)}$ Starts)",
         "",
         "![Verified Height vs. Stroke Rate and Work per Stroke](../data/charts/height_vs_spm_and_work.svg)",
         "",
@@ -835,58 +630,58 @@ def main():
 
     lines.extend([
         "",
-        "### Statistical Correlations in Verified-Height Cohort",
-        f"* **Men ($n = {len(ver_m)}$):**",
-        f"  * **Height vs. Stroke Rate ($R$):** $r = {corr_m_h_spm[0]:+.3f}$ (slope $= {corr_m_h_spm[1]:+.2f}\\text{{ spm/cm}}$, $p = {corr_m_h_spm[4]:.4f}$) — Every $+10\\text{{ cm}}$ ($+4\\text{{ in}}$) of rower height reduces required 2k stroke rate by **$\\approx {abs(corr_m_h_spm[1]*10):.1f}\\text{{ spm}}$**.",
-        f"  * **Height vs. Work per Stroke ($W_{{\\text{{stroke}}}}$):** $r = {corr_m_h_work[0]:+.3f}$ ($p = {corr_m_h_work[4]:.4g}$) — Taller men generate **+{corr_m_h_work[1]*10:.0f} Joules per stroke** per $+10\\text{{ cm}}$ of stature.",
-        f"  * **Height vs. 2,000m Watts ($P$):** $r = {corr_m_h_watts[0]:+.3f}$ ($p = {corr_m_h_watts[4]:.4g}$); **Height vs. 2,000m Time:** $r = {corr_m_h_time[0]:+.3f}$ ($p = {corr_m_h_time[4]:.4g}$).",
-        f"* **Women ($n = {len(ver_w)}$):**",
-        f"  * **Height vs. Stroke Rate ($R$):** $r = {corr_w_h_spm[0]:+.3f}$ (slope $= {corr_w_h_spm[1]:+.2f}\\text{{ spm/cm}}$, $p = {corr_w_h_spm[4]:.4f}$) — Every $+10\\text{{ cm}}$ of height reduces championship 2k cadence by **$\\approx {abs(corr_w_h_spm[1]*10):.1f}\\text{{ spm}}$**.",
-        f"  * **Height vs. Work per Stroke ($W_{{\\text{{stroke}}}}$):** $r = {corr_w_h_work[0]:+.3f}$ ($p = {corr_w_h_work[4]:.4g}$) — Taller women generate **+{corr_w_h_work[1]*10:.0f} Joules per stroke** per $+10\\text{{ cm}}$ of stature.",
-        f"  * **Height vs. 2,000m Watts ($P$):** $r = {corr_w_h_watts[0]:+.3f}$ ($p = {corr_w_h_watts[4]:.4g}$); **Height vs. 2,000m Time:** $r = {corr_w_h_time[0]:+.3f}$ ($p = {corr_w_h_time[4]:.4g}$).",
+        "### Pooled vs. Within-Weight-Class Correlations (De-Confounding Weight Class)",
+        "Because the verified-height sample spans both `Open/Heavyweight` and `Lightweight`/`Flyweight` athletes, pooling across weight classes mixes stature with body mass. Below we report **both** the pooled regressions and the **within-weight-class** regressions:",
         "",
-        "> **Biomechanical Takeaway:** This directly validates the core equation $P = W_{\\text{stroke}} \\cdot (R / 60) = (\\bar{F} \\cdot L_{\\text{effective}}) \\cdot (R / 60)$. Athletes above $198\\text{ cm}$ ($6'6\"$) with $L \\ge 1.47\\text{ m}$ win world medals at **$32.2\\text{–}34.5\\text{ spm}$** (generating $>950\\text{ J/stroke}$), whereas elite Lightweights ($175\\text{–}180\\text{ cm}$, $L \\approx 1.29\\text{–}1.32\\text{ m}$) must rate **$37.5\\text{–}43.0\\text{ spm}$** to compensate for a $25\\%$ shorter/lighter stroke.",
+        f"* **Men Pooled ($n = {len(ver_m)}$):**",
+        f"  * **Height vs. Stroke Rate ($R$):** $r = {corr_m_h_spm[0]:+.3f}$ (slope $= {corr_m_h_spm[1]*10:+.1f}\\text{{ spm per +10 cm}}$, $p = {corr_m_h_spm[4]:.4f}$).",
+        f"  * **Height vs. Work per Stroke ($W_{{\\text{{stroke}}}}$):** $r = {corr_m_h_work[0]:+.3f}$ (slope $= {corr_m_h_work[1]*10:+.0f}\\text{{ J per +10 cm}}$, $p = {corr_m_h_work[4]:.2e}$).",
+        f"  * **Height vs. 2,000m Watts ($P$):** $r = {corr_m_h_watts[0]:+.3f}$ ($p = {corr_m_h_watts[4]:.2e}$); **Height vs. Finish Time:** $r = {corr_m_h_time[0]:+.3f}$ ($p = {corr_m_h_time[4]:.2e}$).",
+        f"* **Men Within-Weight-Class:**",
+        f"  * **Open/Heavyweight Men Only ($n = {len(ver_m_hwt)}$):** Height vs. Rate $r = {corr_m_hwt_spm[0]:+.3f}$ ($p = {corr_m_hwt_spm[4]:.3f}$); Height vs. Work per Stroke $r = {corr_m_hwt_work[0]:+.3f}$ ($p = {corr_m_hwt_work[4]:.3f}$).",
+        f"  * **Lightweight/Flyweight Men Only ($n = {len(ver_m_lwt)}$):** Height vs. Rate $r = {corr_m_lwt_spm[0]:+.3f}$ ($p = {corr_m_lwt_spm[4]:.3f}$).",
+        f"* **Women Pooled ($n = {len(ver_w)}$):**",
+        f"  * **Height vs. Stroke Rate ($R$):** $r = {corr_w_h_spm[0]:+.3f}$ (slope $= {corr_w_h_spm[1]*10:+.1f}\\text{{ spm per +10 cm}}$, $p = {corr_w_h_spm[4]:.4f}$).",
+        f"  * **Height vs. Work per Stroke ($W_{{\\text{{stroke}}}}$):** $r = {corr_w_h_work[0]:+.3f}$ (slope $= {corr_w_h_work[1]*10:+.0f}\\text{{ J per +10 cm}}$, $p = {corr_w_h_work[4]:.2e}$).",
+        f"  * **Open/Heavyweight Women Only ($n = {len(ver_w_hwt)}$):** Height vs. Rate $r = {corr_w_hwt_spm[0]:+.3f}$ ($p = {corr_w_hwt_spm[4]:.3f}$); Height vs. Work per Stroke $r = {corr_w_hwt_work[0]:+.3f}$ ($p = {corr_w_hwt_work[4]:.3f}$).",
+        "",
+        f"> **Empirical Takeaway:** In the Very Tall Men band ($\\ge 198\\text{{ cm}}$, $n = {len(vt_men)}$), athletes average **{vt_men['avg_spm'].mean():.1f} ± {vt_men['avg_spm'].std(ddof=1):.1f} spm** and **{vt_men['work_per_stroke_j'].mean():.0f} J/stroke** (with {n_vt_above_950} of {len(vt_men)} starts exceeding $950\\text{{ J/stroke}}$), whereas Medium/Lightweight Men ($< 190\\text{{ cm}}$, $n = {len(ver_m[ver_m['verified_height_cm'] < 190.0])}$) average **{ver_m[ver_m['verified_height_cm'] < 190.0]['avg_spm'].mean():.1f} spm** and **{ver_m[ver_m['verified_height_cm'] < 190.0]['work_per_stroke_j'].mean():.0f} J/stroke**.",
         "",
         "---",
         "",
-        "## 3. Finding 2: Weight & Age Category Comparison ($N = 3,565$ Races)",
-        "",
-        "When we examine the entire C.R.A.S.H.-B. and WRIC 2,000m population—and specifically the **Top-25% competitive quartile** in each category (which filters out novice/recreational pacing anomalies)—we see the exact tradeoff between **leverage ($L$)** and **cadence ($R$)**:",
+        f"## 3. Finding 2: Weight & Age Category Comparison ($N = {len(df):,}$ Races)",
         "",
         "![Biomechanical Operating Map by Stature Category](../data/charts/category_operating_map.svg)",
         "",
-        "Furthermore, when we hold stature/weight class constant and plot **Stroke Rate ($R$) vs. 500m Split Pace** within each category, higher sustained cadence strongly predicts faster 2,000m splits:",
-        "",
         "![Within-Class Stroke Rate vs. 2000m Split Pace](../data/charts/within_class_spm_vs_split.svg)",
         "",
-        "| Sex | Weight Class | Age Category | $N$ | Est. Reach ($L$) | All Mean Rate | Top-25% Rate ($R$) | Top-25% Split | Top-25% Work/Stroke | Rate vs. Time ($r$) |",
+        "| Sex | Weight Class | Age Category | $N$ | All Mean Rate | Top-25% Rate ($R$) | Top-25% Split | Top-25% Work/Stroke | Rate vs. Time ($r$) | $p$-value |",
         "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
     ])
 
-    for cr in cat_summary_rows:
+    for _, cr in cat_df.iterrows():
         lines.append(
             f"| **{cr['sex']}** | {cr['weight_class']} | {cr['age_category']} | {cr['n_total']} | "
-            f"{cr['est_drive_length_m']:.2f} m | {cr['mean_spm_all']:.1f} spm | "
-            f"**{cr['top25_mean_spm']:.1f} spm** | {cr['top25_mean_split']} | "
-            f"{cr['top25_mean_work_j']:.0f} J | `{cr['corr_spm_vs_time_r']}` |"
+            f"{cr['mean_spm_all']:.1f} spm | **{cr['top25_mean_spm']:.1f} spm** | {cr['top25_mean_split']} | "
+            f"{cr['top25_mean_work_j']:.0f} J | `{cr['corr_spm_vs_time_r']}` | `{cr['corr_spm_vs_time_p']}` |"
         )
 
     lines.extend([
         "",
         "### Key Structural Observations Across the Full Dataset",
-        "1. **Elite Lightweight Men vs. Open Heavyweight Men:** In `Open/Senior` and `U23`, the top quartile of Lightweight Men rates **$36.7\\text{–}38.7\\text{ spm}$** (with world medalists reaching $40\\text{–}43\\text{ spm}$), whereas `Open/Heavyweight` Men average **$33.0\\text{–}35.7\\text{ spm}$** while producing $+180\\text{ to }+218\\text{ J}$ more work per stroke.",
-        "2. **Within Any Fixed Stature Category, Higher Rate Correlates Strongly with Faster Times ($r = -0.35$ to $-0.78$):** Inside a given stature/weight class (`corr_spm_vs_time_r` is negative across almost every competitive category), faster finishers sustain a higher stroke rate ($R$). Why? Because *within* a fixed height/weight tier, athletes have similar reach ($L$), so total power $P = W_{\\text{stroke}} \\cdot (R/60)$ scales directly with the ability to sustain rate without shortening.",
+        f"1. **Elite Lightweight Men vs. Open Heavyweight Men:** In `Open/Senior` and `U23`, the top quartile of Lightweight Men averages **{lwt_u23_m['top25_mean_spm']:.1f}–{lwt_open_m['top25_mean_spm']:.1f} spm** ({lwt_u23_m['top25_mean_work_j']:.0f}–{lwt_open_m['top25_mean_work_j']:.0f} J/stroke), whereas `Open/Heavyweight` Men average **{hwt_u23_m['top25_mean_spm']:.1f}–{hwt_open_m['top25_mean_spm']:.1f} spm** while generating **{hwt_u23_m['top25_mean_work_j']:.0f}–{hwt_open_m['top25_mean_work_j']:.0f} J/stroke**.",
+        f"2. **Within-Class Rate vs. Time Correlations & Age Confounding in Masters:** Across all {len(cat_df)} categories, `corr_spm_vs_time_r` spans **`{min(all_rs):+.3f}` to `{max(all_rs):+.3f}`** (and **`{min(open_u23_rs):+.3f}` to `{max(open_u23_rs):+.3f}`** across `Open/Senior` and `U23` categories). In competitive senior/collegiate cohorts (such as Open/U23 Lightweight Men at $r = {lwt_open_m['corr_spm_vs_time_r']}$ / ${lwt_u23_m['corr_spm_vs_time_r']}$ and Open/U23 Heavyweight Men at $r = {hwt_open_m['corr_spm_vs_time_r']}$ / ${hwt_u23_m['corr_spm_vs_time_r']}$), higher stroke rate correlates strongly with faster finish times. By contrast, in pooled `Masters` categories (which span ages 27 through 95+) and small novice `U15` heats, age and experience differences dominate finish times and attenuate the raw rate correlation.",
         "",
         "---",
         "",
-        "## 4. Finding 3: Quarter-by-Quarter Telemetry ($Q_1 \\to Q_4$) & The Flywheel Die-Off Trap",
+        f"## 4. Finding 3: Quarter-by-Quarter Telemetry ($Q_1 \\to Q_4$, $n = {len(tel_df)}$)",
         "",
-        "Using the 400 high-resolution PM5 race charts ([`data/crashb_quarter_telemetry.csv`](../data/crashb_quarter_telemetry.csv)), we compare quarter-by-quarter stroke rate ($R_{Q1} \\dots R_{Q4}$) and 500m split decay between **Even/Negative Splitters** ($Q_3 - Q_1 \\le +1.5\\text{ s}$) and rowers who suffer **Severe Flywheel Die-Off** ($Q_3 - Q_1 \\ge +4.0\\text{ s}$):",
+        "*(Note on Stratification: In the bottom two rows below, races are conditioned on their third-quarter split delta $Q_3 - Q_1$ to compare how stroke rate $R$ and Distance Per Stroke $\\text{DPS}$ evolve in even-paced pieces versus positive-split fades. The $Q_3 - Q_1$ split difference is the grouping criterion itself, while the resulting rate and $\\text{DPS}$ curves reflect physiological fatigue rather than a mechanical flywheel effect.)*",
         "",
         "![PM5 Telemetry Quarter-by-Quarter Stroke Rate and Split Decay](../data/charts/telemetry_quarters_pacing.svg)",
         "",
-        "| Telemetry Cohort | Races ($n$) | $Q_1$ Rate | $Q_2$ Rate | $Q_3$ Rate | $Q_4$ Rate | $Q_1$ Split | $Q_3$ Split | $Q_3 - Q_1$ Decay |",
-        "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
+        "| Telemetry Cohort | Races ($n$) | $Q_1$ Rate | $Q_2$ Rate | $Q_3$ Rate | $Q_4$ Rate | $Q_1$ Split | $Q_3$ Split | $Q_3 - Q_1$ Delta | $Q_3 - Q_2$ DPS |",
+        "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
     ])
 
     for pr in pacing_summary_rows:
@@ -895,24 +690,21 @@ def main():
         decay_str = f"{pr['q3_minus_q1_split_s']:+.2f} s" if pr["q3_minus_q1_split_s"] != "" else "-"
         lines.append(
             f"| **{pr['cohort']}** | {pr['n_races']} | {pr['q1_spm']:.1f} spm | {pr['q2_spm']:.1f} spm | "
-            f"{pr['q3_spm']:.1f} spm | **{pr['q4_spm']:.1f} spm** | {q1_fmt} | {q3_fmt} | **{decay_str}** |"
+            f"{pr['q3_spm']:.1f} spm | **{pr['q4_spm']:.1f} spm** | {q1_fmt} | {q3_fmt} | **{decay_str}** | `{pr['q3_minus_q2_dps_m']:+.3f} m` |"
         )
 
     lines.extend([
         "",
-        "### Confirming the Catch-Slip & Rate Pacing Model ([`docs/02-fatigue-rate-and-catch-slip.md`](02-fatigue-rate-and-catch-slip.md))",
-        "* **The Parabolic Championship Rate Curve:** Across every competitive category, rowers execute a parabolic rate profile: high in $Q_1$ (driven by a $40\\text{–}44\\text{ spm}$ starting sprint in the first $100\\text{ m}$), settling by $1.0\\text{–}1.5\\text{ spm}$ in $Q_2$ and $Q_3$ to maximize recovery time and preserve effective drive length ($L_{\\text{effective}}$), and ramping up by $+2.5\\text{ to }+4.0\\text{ spm}$ in $Q_4$ as they empty anaerobic reserves.",
-        "* **Why Flywheel Die-Off Happens:** Rowers in the *Severe Flywheel Die-Off* cohort ($Q_3 - Q_1 \\ge +4.0\\text{ s}$) go out at an unsustainable $Q_1$ rate/pace, suffer peripheral muscular fatigue in $Q_2/Q_3$, and lose both cadence and work per stroke simultaneously.",
-        "",
         "---",
         "",
-        "## 5. Reproducing the Analysis & Charts",
+        "## 5. Reproducing the Pipeline & Running Verification Tests",
         "",
-        "Run the complete data and charting pipeline from the [`data/`](../data/) directory using `make`:",
+        "Run the complete data, evaluation, and test pipeline from the [`data/`](../data/) directory using `make`:",
         "",
         "```bash",
         "cd data",
-        "make all        # Runs fetch_crashb.py and evaluate_crashb.py (builds CSVs, SVG charts, and docs/04)",
+        "make all        # Builds athlete_heights.csv, runs fetch_crashb.py, evaluate_crashb.py, and test_math.py",
+        "make test       # Runs pytest / unittest mathematical and dataset integrity verification suite",
         "make evaluate   # Re-runs statistical evaluations and regenerates SVG charts in data/charts/",
         "make clean-raw  # Deletes git-ignored raw HTML/telemetry caches in data/raw/",
         "```",
@@ -922,8 +714,6 @@ def main():
     report_path.write_text("\n".join(lines), encoding="utf-8")
     print(f"Wrote height evaluation summary to {out_height_csv}")
     print(f"Wrote category evaluation summary to {out_cat_csv}")
-    if telemetry_rows:
-        print(f"Wrote telemetry pacing summary to {BASE_DIR / 'eval_telemetry_pacing_summary.csv'}")
     print(f"Generated 4 SVG charts in {CHARTS_DIR}/")
     print(f"Wrote empirical analysis report to {report_path}")
 
