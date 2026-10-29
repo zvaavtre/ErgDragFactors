@@ -13,6 +13,10 @@ some misses that argon fixed with a little prompting.
 All statements should be cited back to the source publications. This is more of a summary.  The data directory has a whole 
 pile of code in it that might be actually correct. I haven't personally looked at it too closely but it seems reasonable.
 
+The AI;DR? - Use the drag factor to set your damper. It ABSOLUTLELY matters what this is set to, depending on your height and 
+style you'll want to adjust up and down. Key tell is how much your missing the flywheel at the catch.  If you are moving backwards
+without it engaged you are wasting energy. Slow your cadence or up the drag factor.
+
 Dave - Oct 29, 2026
 
 
