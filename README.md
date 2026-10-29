@@ -7,7 +7,7 @@
 ## Created By - Note by Dave (zvaavtre)
 
 I went down this rabbit hole on a whim to see how well Gemini 4 Argon worked. I've only manually tweaked a few minor bits
-here and there. All of this output is from Argon as directed by me. I did have claude take a look at it came up with
+here and there. All of this output is from Argon as directed by me. I did have claude take a look at it and it came up with
 some misses that argon fixed with a little prompting.
 
 All statements should be cited back to the source publications. This is more of a summary.  The data directory has a whole 
