@@ -1,0 +1,63 @@
+athlete_id,sex,weight_class,height_cm,height_in,est_drive_length_m,source_tier
+33c87861be0f,M,Open/Heavyweight,208.3,82.0,1.545,USRowing National Team Roster
+cde21c491adb,M,Open/Heavyweight,205.7,81.0,1.524,UW / USRowing Roster
+59f54b70e68c,M,Open/Heavyweight,203.2,80.0,1.505,World Rowing / USRowing Profile
+7a2a4fbe10b4,M,Open/Heavyweight,203.2,80.0,1.505,Team USA / Brown Roster
+9cd0e692ce5b,M,Open/Heavyweight,203.0,79.9,1.503,Laurentian / Canadian Roster
+f486094d33d9,M,Open/Heavyweight,203.0,79.9,1.503,World Rowing / Olympic Profile
+7dd56fa337b3,M,Open/Heavyweight,200.7,79.0,1.485,Team USA / Stanford Roster
+0092e360d6be,M,Open/Heavyweight,198.1,78.0,1.465,Team USA / Michigan Roster
+41834fcf5ca9,M,Open/Heavyweight,198.1,78.0,1.465,Team USA / Princeton Roster
+64eab0c1318e,M,Open/Heavyweight,198.1,78.0,1.465,USRowing / Princeton Roster
+f3a20f0c4fd5,M,Open/Heavyweight,198.1,78.0,1.465,Cal Bears / USRowing Roster
+f54bfe35f78f,M,Open/Heavyweight,198.1,78.0,1.465,Harvard / USRowing Roster
+4123f0fccef6,M,Open/Heavyweight,196.0,77.2,1.449,World Rowing Indoor Profile
+668dad8ed8c3,M,Open/Heavyweight,196.0,77.2,1.449,World Rowing Profile
+9372bc4f5f82,M,Open/Heavyweight,196.0,77.2,1.449,Yale / World Rowing Profile
+7e776b5a46d0,M,Open/Heavyweight,195.6,77.0,1.446,Team USA / Cornell Roster
+5c5e5ef547ce,M,Open/Heavyweight,193.0,76.0,1.425,Olympic / UW Roster
+66f9d8a92b4a,M,Open/Heavyweight,193.0,76.0,1.425,Dartmouth / CUBC Roster
+95d140a26723,M,Open/Heavyweight,193.0,76.0,1.425,USRowing / Penn AC Roster
+982e1cb43280,M,Open/Heavyweight,193.0,76.0,1.425,Team USA / Harvard Roster
+64e3a88ea37d,M,Open/Heavyweight,188.0,74.0,1.386,La Salle / Penn AC Roster
+24319aff6009,M,Lightweight,185.4,73.0,1.366,Princeton / USRowing Lightweight Roster
+d9b193382820,M,Lightweight,185.4,73.0,1.366,Colgate / Stanford Roster
+65aecbaa6ce5,M,Lightweight,182.9,72.0,1.347,MIT Lightweight Roster
+b2f4c118d8cf,M,Lightweight,182.9,72.0,1.347,Colgate Varsity Roster
+87cfe6938e01,M,Flyweight,180.3,71.0,1.326,Georgetown Lightweight Roster
+2266063eb5d8,M,Lightweight,180.0,70.9,1.324,World Rowing Profile
+9567cc4ec149,M,Lightweight,180.0,70.9,1.324,World Rowing / Olympic Profile
+7131b0b7ea1b,M,Lightweight,179.0,70.5,1.316,World Rowing / Olympic Profile
+484613294043,M,Lightweight,178.0,70.1,1.308,World Rowing / Olympic Profile
+b5631d4450ff,M,Lightweight,175.3,69.0,1.287,USRowing / World Rowing Profile
+b72e582fbf0a,M,Lightweight,175.3,69.0,1.287,USRowing / World Rowing Profile
+c806b034e823,M,Flyweight,175.3,69.0,1.287,Fairfield Varsity Roster
+3bc5c22f5c65,M,Lightweight,175.0,68.9,1.285,World Rowing Indoor Profile
+608781ec36a1,M,Lightweight,175.0,68.9,1.285,World Rowing Indoor Profile
+438a1bbc6300,W,Open/Heavyweight,195.0,76.8,1.441,World Rowing / Olympic Profile
+8a99f5b5da98,W,Open/Heavyweight,190.5,75.0,1.406,Cal Bears / Olympic Profile
+095402f07faa,W,Open/Heavyweight,188.0,74.0,1.386,USRowing / Wisconsin Roster
+2dfc830e3fd9,W,Open/Heavyweight,188.0,74.0,1.386,Team USA Profile
+c3d891486782,W,Open/Heavyweight,188.0,74.0,1.386,Team USA / UW Roster
+d7446d07a4a0,W,Open/Heavyweight,188.0,74.0,1.386,Team USA / UW Roster
+7b929002c549,W,Open/Heavyweight,185.4,73.0,1.366,Team USA / Cal Bears Roster
+9881880ee663,W,Open/Heavyweight,185.4,73.0,1.366,Team USA / Michigan Roster
+a473d0027162,W,Open/Heavyweight,185.4,73.0,1.366,Team USA / MSU Roster
+9bc2d48026d4,W,Open/Heavyweight,182.9,72.0,1.347,Team USA / Texas Roster
+9f217c799257,W,Open/Heavyweight,182.9,72.0,1.347,USRowing / Notre Dame Roster
+fc44631fee66,W,Open/Heavyweight,182.9,72.0,1.347,Team USA / Texas Roster
+12a89e9e29cc,W,Open/Heavyweight,180.3,71.0,1.326,Team USA / Cornell Roster
+23deaa57d1b2,W,Open/Heavyweight,180.3,71.0,1.326,Team USA / Wisconsin Roster
+670102f07b33,W,Open/Heavyweight,180.3,71.0,1.326,USRowing / Ohio State Roster
+95be2b73d6e2,W,Open/Heavyweight,180.3,71.0,1.326,Team USA / Wisconsin Roster
+d141ff2fab46,W,Open/Heavyweight,180.3,71.0,1.326,Team USA / Colgate Roster
+d9f0af3f86fd,W,Open/Heavyweight,180.3,71.0,1.326,Team USA / Ithaca Roster
+5e33fc66aeb3,W,Open/Heavyweight,177.8,70.0,1.307,USRowing / Michigan Roster
+874b81f750f9,W,Open/Heavyweight,177.8,70.0,1.307,USRowing / Virginia Roster
+e03dec8830c6,W,Open/Heavyweight,177.8,70.0,1.307,USRowing / St. Lawrence Roster
+89a43019e430,W,Open/Heavyweight,172.7,68.0,1.267,Team USA / Rutgers Roster
+1096602bf7e9,W,Lightweight,170.2,67.0,1.248,NCAA Recruiting Profile
+1e8745c883d2,W,Lightweight,170.2,67.0,1.248,UW Varsity Roster
+245859f765c6,W,Lightweight,170.2,67.0,1.248,MIT Lightweight Roster
+57f34e36b239,W,Lightweight,170.0,66.9,1.246,World Rowing Profile
+e8efe056c167,W,Lightweight,167.6,66.0,1.227,USRowing / William & Mary Roster

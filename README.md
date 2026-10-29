@@ -18,6 +18,8 @@ This repository synthesizes the mathematical derivations ([Anu Dudhia, Oxford](d
 * **[`docs/01-drag-factor-vs-stroke-length.md`](docs/01-drag-factor-vs-stroke-length.md)** — Core mechanical and biomechanical models relating Drag Factor ($k$), Catch Slip ($L_{\text{slip}}$), Kleshnev's Handle Drag Factor ($\text{HDF}$), and athlete anthropometry for a 2k test.
 * **[`docs/02-fatigue-rate-and-catch-slip.md`](docs/02-fatigue-rate-and-catch-slip.md)** — Mathematical analysis of how varying stroke rate ($R$) under fatigue affects flywheel deceleration ($\omega_{\text{min}}$) and catch slip ($L_{\text{slip}}$), including quarter-by-quarter 2k pacing strategies.
 * **[`docs/03-references-and-literature.md`](docs/03-references-and-literature.md)** — Complete annotated bibliography with links to primary physics derivations, BioRow newsletters, peer-reviewed sports science papers, and Concept2 technical guides.
+* **[`docs/04-crash-b-empirical-analysis.md`](docs/04-crash-b-empirical-analysis.md)** — **Empirical Validation (2018–2026 C.R.A.S.H.-B. & WRIC Dataset):** Statistical evaluation of 3,565 individual 2,000m race records and 400 PM5 stroke-by-stroke telemetry logs comparing rower height (proxy for stroke length $L$), stroke rate ($R$), work per stroke, and split decay.
+* **[`data/`](data/)** — Reproducible Python pipeline ([`fetch_crashb.py`](data/fetch_crashb.py), [`evaluate_crashb.py`](data/evaluate_crashb.py), [`Makefile`](data/Makefile)) and anonymized summary CSV datasets.
 * **[`AGENTS.md`](AGENTS.md)** — Attribution and agent guidelines (sourced from **Gemini 4 Argon**).
 
 ---

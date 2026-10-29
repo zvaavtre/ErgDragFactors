@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 440" width="100%" height="100%">
+<style>
+  .bg { fill: #ffffff; rx: 10px; stroke: #e2e8f0; stroke-width: 1.5; }
+  .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 16px; font-weight: 700; fill: #0f172a; }
+  .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; fill: #475569; }
+  .axis-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 600; fill: #1e293b; }
+  .tick-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10.5px; fill: #64748b; }
+  .legend-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: #334155; }
+  .annot { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10.5px; font-weight: 600; fill: #1e293b; }
+  .grid { stroke: #f1f5f9; stroke-width: 1; }
+  .axis { stroke: #94a3b8; stroke-width: 1.2; }
+</style>
+<rect class="bg" x="1" y="1" width="858" height="438" />
+<text class="title" x="30" y="32">Within-Class Stroke Rate (R) vs. 2,000m Split Pace (Non-Masters Championship Field)</text>
+<text class="subtitle" x="30" y="50">Holding stature/weight class constant, higher sustained stroke rate directly correlates with faster 2,000m splits (n = 1,789 starts)</text>
+<line class="grid" x1="80" y1="75.0" x2="620" y2="75.0" />
+<text class="tick-label" x="72" y="79.0" text-anchor="end">1:25.0</text>
+<line class="grid" x1="80" y1="113.8" x2="620" y2="113.8" />
+<text class="tick-label" x="72" y="117.8" text-anchor="end">1:30.0</text>
+<line class="grid" x1="80" y1="152.5" x2="620" y2="152.5" />
+<text class="tick-label" x="72" y="156.5" text-anchor="end">1:35.0</text>
+<line class="grid" x1="80" y1="191.2" x2="620" y2="191.2" />
+<text class="tick-label" x="72" y="195.2" text-anchor="end">1:40.0</text>
+<line class="grid" x1="80" y1="230.0" x2="620" y2="230.0" />
+<text class="tick-label" x="72" y="234.0" text-anchor="end">1:45.0</text>
+<line class="grid" x1="80" y1="268.8" x2="620" y2="268.8" />
+<text class="tick-label" x="72" y="272.8" text-anchor="end">1:50.0</text>
+<line class="grid" x1="80" y1="307.5" x2="620" y2="307.5" />
+<text class="tick-label" x="72" y="311.5" text-anchor="end">1:55.0</text>
+<line class="grid" x1="80" y1="346.2" x2="620" y2="346.2" />
+<text class="tick-label" x="72" y="350.2" text-anchor="end">2:00.0</text>
+<line class="grid" x1="80" y1="385.0" x2="620" y2="385.0" />
+<text class="tick-label" x="72" y="389.0" text-anchor="end">2:05.0</text>
+<line class="grid" x1="80.0" y1="75" x2="80.0" y2="385" />
+<text class="tick-label" x="80.0" y="401" text-anchor="middle">26 spm</text>
+<line class="grid" x1="152.0" y1="75" x2="152.0" y2="385" />
+<text class="tick-label" x="152.0" y="401" text-anchor="middle">28 spm</text>
+<line class="grid" x1="224.0" y1="75" x2="224.0" y2="385" />
+<text class="tick-label" x="224.0" y="401" text-anchor="middle">30 spm</text>
+<line class="grid" x1="296.0" y1="75" x2="296.0" y2="385" />
+<text class="tick-label" x="296.0" y="401" text-anchor="middle">32 spm</text>
+<line class="grid" x1="368.0" y1="75" x2="368.0" y2="385" />
+<text class="tick-label" x="368.0" y="401" text-anchor="middle">34 spm</text>
+<line class="grid" x1="440.0" y1="75" x2="440.0" y2="385" />
+<text class="tick-label" x="440.0" y="401" text-anchor="middle">36 spm</text>
+<line class="grid" x1="512.0" y1="75" x2="512.0" y2="385" />
+<text class="tick-label" x="512.0" y="401" text-anchor="middle">38 spm</text>
+<line class="grid" x1="584.0" y1="75" x2="584.0" y2="385" />
+<text class="tick-label" x="584.0" y="401" text-anchor="middle">40 spm</text>
+<line class="axis" x1="80" y1="75" x2="80" y2="385" />
+<line class="axis" x1="80" y1="385" x2="620" y2="385" />
+<text class="axis-label" x="350.0" y="427" text-anchor="middle">Average 2,000m Stroke Rate (spm)</text>
+<text class="axis-label" transform="translate(22, 230.0) rotate(-90)" text-anchor="middle">500m Split Pace (Faster ↑)</text>
+<rect x="640" y="80" width="200" height="290" rx="8" fill="#f8fafc" stroke="#cbd5e1" />
+<text class="annot" x="652" y="104">Within-Class Correlations</text>
+<polyline points="156.2,261.1 224.6,237.5 291.3,221.8 355.7,199.2 427.7,175.9 520.7,168.2" fill="none" stroke="#1d4ed8" stroke-width="2.8" />
+<circle cx="156.2" cy="261.1" r="4.5" fill="#1d4ed8" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="224.6" cy="237.5" r="4.5" fill="#1d4ed8" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="291.3" cy="221.8" r="4.5" fill="#1d4ed8" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="355.7" cy="199.2" r="4.5" fill="#1d4ed8" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="427.7" cy="175.9" r="4.5" fill="#1d4ed8" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="520.7" cy="168.2" r="4.5" fill="#1d4ed8" stroke="#ffffff" stroke-width="1.2" />
+<line x1="652" y1="126" x2="672" y2="126" stroke="#1d4ed8" stroke-width="3" />
+<circle cx="662" cy="126" r="4" fill="#1d4ed8" />
+<text class="legend-text" x="678" y="130" font-weight="600">Men Open/Heavyweight</text>
+<text class="tick-label" x="678" y="146">r = -0.40 (-1.41s/500m per +1 spm)</text>
+<text class="tick-label" x="678" y="160">n = 613 race starts</text>
+<polyline points="148.4,290.7 224.4,276.9 290.8,249.8 352.9,228.9 431.0,207.2 506.8,171.1" fill="none" stroke="#0ea5e9" stroke-width="2.8" />
+<circle cx="148.4" cy="290.7" r="4.5" fill="#0ea5e9" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="224.4" cy="276.9" r="4.5" fill="#0ea5e9" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="290.8" cy="249.8" r="4.5" fill="#0ea5e9" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="352.9" cy="228.9" r="4.5" fill="#0ea5e9" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="431.0" cy="207.2" r="4.5" fill="#0ea5e9" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="506.8" cy="171.1" r="4.5" fill="#0ea5e9" stroke="#ffffff" stroke-width="1.2" />
+<line x1="652" y1="182" x2="672" y2="182" stroke="#0ea5e9" stroke-width="3" />
+<circle cx="662" cy="182" r="4" fill="#0ea5e9" />
+<text class="legend-text" x="678" y="186" font-weight="600">Men Lightweight</text>
+<text class="tick-label" x="678" y="202">r = -0.62 (-1.60s/500m per +1 spm)</text>
+<text class="tick-label" x="678" y="216">n = 224 race starts</text>
+<polyline points="147.7,366.9 220.6,347.3 285.6,333.5 355.5,303.1 426.7,302.9" fill="none" stroke="#be123c" stroke-width="2.8" />
+<circle cx="147.7" cy="366.9" r="4.5" fill="#be123c" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="220.6" cy="347.3" r="4.5" fill="#be123c" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="285.6" cy="333.5" r="4.5" fill="#be123c" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="355.5" cy="303.1" r="4.5" fill="#be123c" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="426.7" cy="302.9" r="4.5" fill="#be123c" stroke="#ffffff" stroke-width="1.2" />
+<line x1="652" y1="238" x2="672" y2="238" stroke="#be123c" stroke-width="3" />
+<circle cx="662" cy="238" r="4" fill="#be123c" />
+<text class="legend-text" x="678" y="242" font-weight="600">Women Open/Heavyweight</text>
+<text class="tick-label" x="678" y="258">r = -0.33 (-1.29s/500m per +1 spm)</text>
+<text class="tick-label" x="678" y="272">n = 514 race starts</text>
+<polyline points="289.9,367.6 364.7,313.7 425.6,321.5 527.3,287.7" fill="none" stroke="#f43f5e" stroke-width="2.8" />
+<circle cx="289.9" cy="367.6" r="4.5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="364.7" cy="313.7" r="4.5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="425.6" cy="321.5" r="4.5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.2" />
+<circle cx="527.3" cy="287.7" r="4.5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.2" />
+<line x1="652" y1="294" x2="672" y2="294" stroke="#f43f5e" stroke-width="3" />
+<circle cx="662" cy="294" r="4" fill="#f43f5e" />
+<text class="legend-text" x="678" y="298" font-weight="600">Women Lightweight</text>
+<text class="tick-label" x="678" y="314">r = -0.57 (-1.60s/500m per +1 spm)</text>
+<text class="tick-label" x="678" y="328">n = 122 race starts</text>
+</svg>

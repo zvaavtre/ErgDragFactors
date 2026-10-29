@@ -1,0 +1,6 @@
+# Ignore raw downloaded HTML and telemetry caches
+data/raw/
+__pycache__/
+*.pyc
+.DS_Store
+.idea/
