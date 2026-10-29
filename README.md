@@ -4,7 +4,7 @@
 
 ---
 
-## Created By - Note by Dave (zvaavtre)
+## Vibed By by Dave (zvaavtre)
 
 I went down this rabbit hole on a whim to see how well Gemini 4 Argon worked. I've only manually tweaked a few minor bits
 here and there. All of this output is from Argon as directed by me. I did have claude take a look at it and it came up with
