@@ -15,6 +15,7 @@ When working in or extending `ErgDragFactors`, keep the following conventions an
 
 2. **Project Structure:**
    - [`README.md`](README.md) — Overview, lookup tables, and core equations.
+   - [`docs/00-tldr-height-and-style-guide.md`](docs/00-tldr-height-and-style-guide.md) — Actionable TL;DR guide broken out by rower height and physiological style.
    - [`docs/01-drag-factor-vs-stroke-length.md`](docs/01-drag-factor-vs-stroke-length.md) — Mechanical & biomechanical models for Drag Factor vs. Drive Length in a 2,000m test.
    - [`docs/02-fatigue-rate-and-catch-slip.md`](docs/02-fatigue-rate-and-catch-slip.md) — Rate ($R$) vs. Catch Slip ($L_{\text{slip}}$) optimization under fatigue across 2k quarters.
    - [`docs/03-references-and-literature.md`](docs/03-references-and-literature.md) — Primary academic, physics, and manufacturer references.

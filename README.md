@@ -14,6 +14,7 @@ This repository synthesizes the mathematical derivations (Anu Dudhia, Oxford), b
 
 ## Repository Contents
 
+* **[`docs/00-tldr-height-and-style-guide.md`](docs/00-tldr-height-and-style-guide.md)** — **TL;DR Playbook:** Practical 2k stroke length, drag factor, and rate management tips broken out by rower height (Tall, Medium, Shorter) and rowing style (Diesel/Aerobic vs. Power/Strength).
 * **[`docs/01-drag-factor-vs-stroke-length.md`](docs/01-drag-factor-vs-stroke-length.md)** — Core mechanical and biomechanical models relating Drag Factor ($k$), Catch Slip ($L_{\text{slip}}$), Kleshnev's Handle Drag Factor ($\text{HDF}$), and athlete anthropometry for a 2k test.
 * **[`docs/02-fatigue-rate-and-catch-slip.md`](docs/02-fatigue-rate-and-catch-slip.md)** — Mathematical analysis of how varying stroke rate ($R$) under fatigue affects flywheel deceleration ($\omega_{\text{min}}$) and catch slip ($L_{\text{slip}}$), including quarter-by-quarter 2k pacing strategies.
 * **[`docs/03-references-and-literature.md`](docs/03-references-and-literature.md)** — Complete annotated bibliography with links to primary physics derivations, BioRow newsletters, peer-reviewed sports science papers, and Concept2 technical guides.
