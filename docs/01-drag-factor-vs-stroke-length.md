@@ -15,8 +15,8 @@ At the start of the drive (the catch), the flywheel is already spinning at angul
 * **How Drag Factor ($k$) changes $\omega_{\text{min}}$:** During the recovery time ($t_{\text{rec}}$), the flywheel decelerates according to:
   $$\omega_{\text{min}} = \frac{\omega_{\text{max}}}{1 + \frac{k}{I} \omega_{\text{max}} t_{\text{rec}}}$$
   *(where $I \approx 0.1001\text{ kg}\cdot\text{m}^2$ is the Concept2 flywheel moment of inertia).*
-* **Low Drag Factor ($k \approx 90\text{–}110$):** The flywheel decelerates very slowly ($\omega_{\text{min}}$ stays high). You must accelerate the handle much faster at the catch just to engage the clutch. This increases $L_{\text{slip}}$ and **shortens your effective stroke length** unless you have elite front-end speed.
-* **High Drag Factor ($k \approx 140\text{–}200$):** The flywheel brakes hard during recovery ($\omega_{\text{min}}$ drops low). You get an instant mechanical "bite" at the catch (tiny $L_{\text{slip}}$, artificially lengthening the *engaged* stroke), **but** at a huge cost to peak force and velocity.
+* **Low Drag Factor ($k \approx 90\text{–}110$):** The flywheel decelerates very slowly ($\omega_{\text{min}}$ stays high). You must accelerate the handle much faster at the catch just to engage the clutch. This increases $L_{\text{slip}}$ and **shortens your effective stroke length** unless you have rapid front-end handle acceleration.
+* **High Drag Factor ($k \approx 140\text{–}200$):** The flywheel decelerates rapidly during recovery ($\omega_{\text{min}}$ drops low). The clutch engages earlier in the drive (smaller $L_{\text{slip}}$, lengthening the *engaged* stroke), **but** at the cost of much higher peak force and lower handle velocity.
 
 ---
 
