@@ -9,9 +9,9 @@ The research synthesis, mathematical derivations, biomechanical models, and paci
 When working in or extending `ErgDragFactors`, keep the following conventions and domain principles in mind:
 
 1. **Core Domain Focus:**
-   - **Drag Factor ($k$) vs. Damper Setting (1–10):** Always model and reference the PM5 **Drag Factor ($k$)** ($\tau_{\text{drag}} = k\omega^2$), never raw damper numbers, except as approximate clean-cage translations.
-   - **Effective Drive Length ($L_{\text{effective}}$) & Catch Slip ($L_{\text{slip}}$):** Distinguish between total physical reach ($L_{\text{total}}$) and engaged flywheel travel ($L_{\text{effective}} = L_{\text{total}} - L_{\text{slip}}$).
-   - **Primary Literature:** Ground any additions or calculators in the work of **Anu Dudhia** (Oxford University flywheel physics) and **Dr. Valery Kleshnev** (BioRow Handle Drag Factor $\text{HDF}$ and catch-slip telemetry).
+   - **Drag Factor vs. Damper Setting (1–10):** Always model and reference the PM5 **Drag Factor** ($k$, where $\tau_{\text{drag}} = k\omega^2$), never raw damper numbers, except as approximate clean-cage translations.
+   - **Effective Drive Length & Catch Slip:** Distinguish between total physical reach ($L_{\text{total}}$), catch slip ($L_{\text{slip}}$), and engaged flywheel travel ($L_{\text{effective}} = L_{\text{total}} - L_{\text{slip}}$).
+   - **Primary Literature:** Ground any additions or calculators in the work of [**Anu Dudhia**](docs/03-references-and-literature.md#anu-dudhia-oxford-the-physics-of-rowing) (Oxford University flywheel physics) and [**Dr. Valery Kleshnev**](docs/03-references-and-literature.md#valery-kleshnev-biorow-handle-drag-factor) (BioRow Handle Drag Factor $\text{HDF}$ and catch-slip telemetry).
 
 2. **Project Structure:**
    - [`README.md`](README.md) — Overview, lookup tables, and core equations.
