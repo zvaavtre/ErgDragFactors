@@ -19,8 +19,8 @@ Your height and wingspan dictate how long the chain travels (`Drive Length` in E
 * **Target Drag Factor:** **115 – 128** *(Damper ~3.5 – 4.5)*
 * **Base 2k Rate:** **33 – 36 spm**
 * **Your Biggest Advantage:** Versatile gearing. You can shift between power strokes and high turnover without the massive slide-energy penalty of a $6'6"$ rower.
-* **Your Biggest Trap:** Over-reaching at the catch (letting your shins go past $90^\circ$ vertical and lifting your heels excessively) trying to match a tall rower's `Drive Length`. Over-compression kills your knee leverage and causes **catch slip** (the fan spins away before your legs engage).
-* **What to Do When Tired (1,000m–1,500m):** Focus on **quick hands away** from the body at the finish so you don't have to rush the last 6 inches into the catch. Stop your shins at vertical ($90^\circ$) and snap the heels down immediately.
+* **Your Biggest Trap:** Chasing extra `Drive Length` beyond your actual hip/ankle mobility (forcing compression by rounding the lumbar spine or lunging the shoulders when the pelvis has already stopped rotating). If you *do* have the ankle dorsiflexion and hip mobility, deep compression is effective on the erg—it only becomes a trap when you exceed your active range of motion and lose elastic rebound at the catch.
+* **What to Do When Tired (1,000m–1,500m):** Focus on **quick hands away** from the body at the finish so you don't have to rush the last 6 inches into the catch. Compress only as deep as your active hip/ankle mobility allows you to rebound instantly without pausing at the front.
 
 ### Shorter / Compact Rowers ($\text{Under } 5'9" / <175\text{ cm}$) — *Target Drive Length: $1.10 - 1.28\text{ m}$*
 * **Target Drag Factor:** **105 – 118** *(Damper ~3.0 – 4.0)*
@@ -49,8 +49,8 @@ Two rowers of the exact same height often produce watts differently. Pick the co
 1. **Never Rushing the Slide When Exhausted (1,000m–1,600m):**
    When you're tired, your legs react slower at the catch. If you rush up the slide to raise the rate, the flywheel hasn't slowed down yet—so your tired legs meet a *faster* flywheel. Result: **massive catch slip** (you pull 15–20 cm of dead air before the chain bites). Keep the slide controlled so the fan slows down to meet your legs.
 2. **How to Sprint the Last 350m Without Slipping:**
-   In the final sprint, your legs can no longer push a heavy load, so you *must* raise the rate ($+3\text{ to }6\text{ spm}$). To stop the fast flywheel from slipping away from your tired legs at 38+ spm, **deliberately stop 2–3 cm short of full compression at the catch**. Slightly wider knee angles give you instant leverage to grab the fast fan.
-3. **Never Over-Reach for Extra `Drive Length`:**
-   Lunging your shoulders past your hips or letting your shins go past $90^\circ$ vertical adds "fake" reach where your body has zero leverage. Those first 5 cm of weak movement just let the flywheel spin down without adding watts.
+   In the final sprint, your legs can no longer push a heavy load, so you *must* raise the rate ($+3\text{ to }6\text{ spm}$). Because the flywheel is spinning much faster at 38+ spm, don't dwell at the bottom of your catch—use your natural stretch reflex to bounce out of the front end immediately, or trim 1–2 cm off your deepest compression if your fatigued hips/quads are rebounding too slowly to catch the fast fan.
+3. **Know the Difference Between True Mobility and "Fake" Reach:**
+   Unlike an on-water shell (where going past $90^\circ$ shins can check the boat's run), deep compression on a stationary erg is completely viable **if** your ankle dorsiflexion and hip mobility support a solid pelvic tilt and elastic stretch reflex. It only turns into "fake" reach when you force length past your flexibility limit by collapsing your chest or rounding your lower back—which adds slow, unloaded travel ($L_{\text{slip}}$) where the chain isn't accelerating the flywheel.
 4. **Watch ErgData's `Drive Length` in Practice:**
    If your `Drive Length` drops by more than **$5\text{ cm}$** between the first 500m and third 500m of a piece, your drag factor is either too high (stalling your muscles) or you are rushing the slide and losing the catch.
