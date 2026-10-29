@@ -4,6 +4,21 @@
 
 ---
 
+## Created By - Note by Dave (zvaavtre)
+
+I went down this rabbit hole on a whim to see how well Gemini 4 Argon worked. I've only manually tweaked a few minor bits
+here and there. All of this output is from Argon as directed by me. I did have claude take a look at it came up with
+some misses that argon fixe.
+
+All statements should be cited back to the source publications. This is more of a summary.  The data directory has a whole 
+pile of code in it that might be actually correct. I haven't personally looked at it too closely but it seems reasonable.
+
+Dave - Oct 29, 2026
+
+
+
+
+
 ## Overview
 
 In competitive indoor rowing, **nobody models the damper setting (1–10) directly** because dust inside the cage, altitude, air temperature, and barometric pressure make a "5" on one machine feel completely different from a "5" on another ([Concept2 Damper & Drag Factor Guide](docs/03-references-and-literature.md#concept2-damper-setting-101-and-explaining-drag-factor)). Instead, physics and sports science models use the **Drag Factor** ($k$)—the flywheel's true aerodynamic deceleration rate measured by the PM5 monitor during the recovery phase ($\tau_{\text{drag}} = k\omega^2$).

@@ -2,7 +2,7 @@
 
 ## Attribution & Source
 
-The research synthesis, mathematical derivations, biomechanical models, and pacing documentation in this repository were generated and compiled by **Gemini 4 Argon** (via Google Antigravity).
+The research synthesis, mathematical derivations, biomechanical models, and pacing documentation in this repository were generated and compiled by **Gemini 4 Argon** (via Google Antigravity). With **Claude** sanity checking everything as best it could.
 
 ## Repository Context for Agents
 
