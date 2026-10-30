@@ -10,7 +10,6 @@ It tried to test drag factor advice against real racing. It scraped C.R.A.S.H.-B
 
 * **The data has no drag factor.** Results and race charts record time, distance, speed and stroke rate. They do not record drag factor or drive length.
 * **Splits cannot reveal the setting.** The monitor [accounts for damping](../docs/references.md#dudhia-the-physics-of-rowing), and [rowers can choose any drag factor](../docs/references.md#crash-b-sprints-faq).
-* **A single sentence states the finding.** The main README records that the data has no drag factor. That does not need about 2,000 lines of code and a 173 MB cache.
 * **The one analysis does not test drag factor.** It rests on 55 name-matched athletes and gives a wide, inconclusive result.
 * **It adds privacy and accuracy risk.** It handles named people, its hashes of public names can be reversed with a name list, and some height matches may be the wrong person.
 

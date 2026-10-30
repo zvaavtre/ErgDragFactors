@@ -91,7 +91,7 @@ We checked the original content against its cited sources and the data. Sources 
 | Kleshnev RBN 2011/01 link | It redirects to the BioRow homepage. | Replaced with RBN 2020/01 |
 | Kleshnev's book on catch factor and drag loads | Not read, and the description could not be confirmed. | Removed |
 | Concept2 ErgData: reported drive length is the engaged length | Concept2's drive length article does not say how it is measured. | Removed |
-| "Audited every reference" against primary publications | This was not true, as the errors above show. | Superseded |
+| "Audited every reference" against primary publications | The audit missed the errors listed above. | Superseded |
 
 ### Data and code claims
 
