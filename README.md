@@ -1,6 +1,7 @@
 # ErgDragFactors
 
-Is there any data behind a starting drag factor for your height?
+What should I set my drag factor to? That is our question, in particular is there any data supporting a preferred drag factor
+relating to height or rowing style?
 
 > [!IMPORTANT]
 > **No.** We found no drag factor numbers by height and no dataset that pairs the two. The closest official advice is a general rule that bigger, heavier, stronger users lean higher and smaller, lighter users lean lower, with no data behind it ([Concept2 UK](docs/references.md#concept2-uk-indoor-rowing-training-guide-version-2)). The one study we found that tested height saw no effect from it, in 12 club rowers ([Kane et al., 2013](docs/references.md#kane-et-al-2013)).
@@ -8,6 +9,24 @@ Is there any data behind a starting drag factor for your height?
 > **C.R.A.S.H.-B. race data doesn't fill the gap.** It never records which drag factor anyone used, so a height rule is not a reasonable conclusion from it. See [section 5](#5-what-real-race-data-shows).
 >
 > **Use the published numbers below as starting points, then test on yourself.** They go by sex, weight and age.
+
+> [!NOTE]
+> This started off as an experiment with Gemini4 Argon. Turns out that it did a whole bunch of stuff
+> including creating a lot of math and data processing that just supported my initial question. Not 
+> actually pulling from the references (which is what I wanted).
+> 
+> I posted it over on reddit at https://www.reddit.com/r/Rowing/ and got some feedback about how it looked
+> kinda sloppy. Which was not unexpected.  I figured the resources themselves were still interesting. But 
+> then decided to give Claude the task of verifying everything.  
+> 
+> Claude was not amused. 
+> 
+> See the [DECISIONS.md](DECISIONS.md) for how all that went :/
+> 
+> Now we're just a collection of how/why to set your drag factor with lots of references.
+> 
+> dave (Oct 30, 2026)
+
 
 ## 1. Find your damper setting
 
