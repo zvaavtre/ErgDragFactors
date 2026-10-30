@@ -12,8 +12,8 @@ World Rowing Indoor Championships (WRIC 2019) results and stroke-rate telemetry
 from Time-Team using BeautifulSoup and pandas.
 
 Note on Regatta Years:
-  - 2021 C.R.A.S.H.-B. and 2024 C.R.A.S.H.-B. are not hosted on the Time-Team
-    regatta server and are therefore not included.
+  - 2021 C.R.A.S.H.-B. has a Time-Team results page but is not parsed here.
+  - 2024 C.R.A.S.H.-B. has no Time-Team page.
 
 Privacy & Git Hygiene:
   - Raw HTML/JSON downloads are cached in data/raw/ (excluded via .gitignore).
@@ -63,8 +63,8 @@ def make_athlete_id(name: str) -> str:
 
 def est_drive_len_from_height(height_cm: float) -> float:
     """
-    Kleshnev BioRow anthropometric model: total ergometer reach L_total (m)
-    as a function of verified rower stature H (cm).
+    Internal, unpublished estimate of total ergometer reach L_total (m)
+    as a function of rower stature H (cm).
     At H = 200 cm -> L ~ 1.48 m; H = 180 cm -> L ~ 1.324 m; H = 165 cm -> L ~ 1.207 m.
     """
     return round(0.0078 * height_cm - 0.08, 3)

@@ -1,80 +1,102 @@
 # ErgDragFactors
 
-**Physics, Biomechanics, and Pacing Models for Concept2 Drag Factor (k), Stroke Length (L), and Catch Slip in a 2,000m Ergometer Test.**
+Is there any data behind a starting drag factor for your height?
 
----
+> [!IMPORTANT]
+> **No.** We found no study or dataset that pairs Concept2 drag factor with rower height, and no official source gives a drag factor by height.
+>
+> **C.R.A.S.H.-B. race data doesn't fill the gap.** It never records which drag factor anyone used, so a height rule is not a reasonable conclusion from it. See [section 5](#5-what-real-race-data-shows).
+>
+> **Use the published numbers below as starting points, then test on yourself.** They go by sex, weight and age.
 
-## Vibed By by Dave (zvaavtre)
+## 1. Find your damper setting
 
-I went down this rabbit hole on a whim to see how well Gemini 4 Argon worked. I've only manually tweaked a few minor bits
-here and there. All of this output is from Argon as directed by me. I did have claude take a look at it and it came up with
-some misses that argon fixed with a little prompting.
+Set the drag factor, not a damper number. A damper of 6 on one erg may be a 4 on another ([Concept2](docs/references.md#concept2-what-is-the-best-damper-setting-for-me)), but the monitor measures the actual damping ([Dudhia](docs/references.md#dudhia-the-physics-of-rowing)).
 
-I directed the data flows to be anonymized and the fuzzy name matching since the agent was happy to grab everyones data and republish
-it by default.
+1. On the PM5 Main Menu, select **More Options**, then **Display Drag Factor**.
+2. Row. The drag factor appears after a few seconds.
+3. Move the damper lever until the monitor shows your target.
 
-All statements should be cited back to the source publications. This is more of a summary.  The data directory has a whole 
-pile of code in it that might be actually correct. I haven't personally looked at it too closely but it seems reasonable.
+If you have no target yet, Concept2 suggests starting at **damper 3–5**.
 
-The AI;DR? - Use the drag factor to set your damper. It ABSOLUTLELY matters what this is set to, depending on your height and 
-style you'll want to adjust up and down. Key tell is how much your missing the flywheel at the catch.  If you are moving backwards
-without it engaged you are wasting energy. Slow your cadence or up the drag factor.  Also the tall folks have a built in advantage like 
-we always suspected :).
+**Read more:**
+* [What Damper Setting Should I Use?](docs/references.md#concept2-what-damper-setting-should-i-use) (Concept2)
+* [Viewing Drag Factor](docs/references.md#concept2-viewing-drag-factor) (Concept2)
+* [What Damper Setting and Drag Factor to Use](docs/references.md#concept2-what-damper-setting-and-drag-factor-to-use) (Concept2)
+* [Safety Alert: setting up your C2](docs/references.md#british-rowing-safety-alert-2018) (British Rowing)
 
-Dave - Oct 29, 2026
+## 2. Starting points by sex and weight
 
+Only British Rowing gives recommended ranges here. The other columns are fixed settings required for those federations' tests.
 
-
-
-
-## Overview
-
-In competitive indoor rowing, **nobody models the damper setting (1–10) directly** because dust inside the cage, altitude, air temperature, and barometric pressure make a "5" on one machine feel completely different from a "5" on another ([Concept2 Damper & Drag Factor Guide](docs/03-references-and-literature.md#concept2-damper-setting-101-and-explaining-drag-factor)). Instead, physics and sports science models use the **Drag Factor** ($k$)—the flywheel's true aerodynamic deceleration rate measured by the PM5 monitor during the recovery phase ($\tau_{\text{drag}} = k\omega^2$).
-
-This repository synthesizes the mathematical derivations ([Anu Dudhia, Oxford](docs/03-references-and-literature.md#anu-dudhia-oxford-the-physics-of-rowing)), biomechanical models ([Dr. Valery Kleshnev, BioRow](docs/03-references-and-literature.md#valery-kleshnev-biorow-handle-drag-factor)), and physiological studies ([Kane et al., 2008 & 2013](docs/03-references-and-literature.md#kane-et-al-2008--2013-effects-of-drag-factor-and-stroke-resistance-on-rowing-physiology--economy); [Cerasola et al., 2017](docs/03-references-and-literature.md#cerasola-et-al-2017-drag-factor-on-rowing-ergometer-during-2000-m-performance); [Ingham et al., 2002](docs/03-references-and-literature.md#ingham-et-al-2002-determinants-of-2000m-rowing-ergometer-performance)) on optimizing **Drag Factor** ($k$), **Effective Drive Length** ($L_{\text{effective}}$), and **Stroke Rate** ($R$) across a 2,000m (2k) piece.
-
----
-
-## Repository Contents
-
-* **[`docs/00-tldr-height-and-style-guide.md`](docs/00-tldr-height-and-style-guide.md)** — **TL;DR Playbook:** Practical 2k stroke length, drag factor, and rate management tips broken out by rower height (Tall, Medium, Shorter) and rowing style (Diesel/Aerobic vs. Power/Strength).
-* **[`docs/01-drag-factor-vs-stroke-length.md`](docs/01-drag-factor-vs-stroke-length.md)** — Core mechanical and biomechanical models relating Drag Factor ($k$), Catch Slip ($L_{\text{slip}}$), Kleshnev's Handle Drag Factor ($\text{HDF}$), and athlete anthropometry for a 2k test.
-* **[`docs/02-fatigue-rate-and-catch-slip.md`](docs/02-fatigue-rate-and-catch-slip.md)** — Mathematical analysis of how varying stroke rate ($R$) under fatigue affects flywheel deceleration ($\omega_{\text{min}}$) and catch slip ($L_{\text{slip}}$), including quarter-by-quarter 2k pacing strategies.
-* **[`docs/03-references-and-literature.md`](docs/03-references-and-literature.md)** — Complete annotated bibliography with links to primary physics derivations, BioRow newsletters, peer-reviewed sports science papers, and Concept2 technical guides.
-* **[`docs/04-crash-b-empirical-analysis.md`](docs/04-crash-b-empirical-analysis.md)** — **Empirical Validation (2018–2026 C.R.A.S.H.-B. & WRIC Dataset):** Statistical evaluation of 4,620 individual 2,000m race records (C.R.A.S.H.-B. 2018–2020, 2022–2023, 2025–2026 & WRIC 2019) and 400 PM5 stroke-by-stroke telemetry logs comparing rower height (proxy for stroke length $L$), stroke rate ($R$), work per stroke, and split decay.
-* **[`data/`](data/)** — Reproducible Python pipeline ([`build_athlete_heights.py`](data/build_athlete_heights.py), [`fetch_crashb.py`](data/fetch_crashb.py), [`evaluate_crashb.py`](data/evaluate_crashb.py), [`test_math.py`](data/test_math.py), [`Makefile`](data/Makefile)) and pseudonymized summary CSV datasets.
-* **[`AGENTS.md`](AGENTS.md)** — Attribution and agent guidelines (sourced from **Gemini 4 Argon**).
-
----
-
-## Quick Reference: Optimal 2k Drag Factor & Stroke Length Lookup
-
-| [Athlete Profile](docs/00-tldr-height-and-style-guide.md#1-setup-by-rower-height) | [Typical 2k Drive Length](docs/01-drag-factor-vs-stroke-length.md#1-the-mechanical-model-catch-slip-vs-drive-length) ($L$) | [Typical 2k Rate](docs/02-fatigue-rate-and-catch-slip.md#3-the-optimal-2000m-rate-vs-slip-pacing-model) ($R$) | [Optimal 2k Drag Factor](docs/01-drag-factor-vs-stroke-length.md#4-practical-lookup-model--field-calibration-protocol) ($k$) | [Approx. Damper](docs/03-references-and-literature.md#concept2-damper-setting-101-and-explaining-drag-factor) (Clean Cage) |
+| Category | [British Rowing](docs/references.md#british-rowing-safety-alert-2018) (recommended range) | [Rowing Australia](docs/references.md#rowing-australia-2000m-and-5000m-ergometer-test-protocols) (test setting) | [Rowing Canada](docs/references.md#rowing-canada-aviron-national-nextgen-testing-and-monitoring-strategy-20212024) (test setting) | [New Zealand](docs/references.md#concept2-nz-making-sense-of-drag-factor-and-resistance) (test setting) |
 | :--- | :--- | :--- | :--- | :--- |
-| [**Heavyweight Men** (Tall / Long lever)](docs/00-tldr-height-and-style-guide.md#tall-rowers) | 1.40 – 1.55 m | 32 – 36 spm | **125 – 135** *([up to 140 for power-dominant](docs/00-tldr-height-and-style-guide.md#2-adjustments-by-physiology-aerobic-vs-force-dominant))* | ~4.5 – 5.5 |
-| [**Lightweight Men / Heavyweight Women** (Medium height)](docs/00-tldr-height-and-style-guide.md#medium-height-rowers) | 1.25 – 1.40 m | 33 – 37 spm | **115 – 125** *([±5–8 by physiology](docs/00-tldr-height-and-style-guide.md#2-adjustments-by-physiology-aerobic-vs-force-dominant))* | ~3.5 – 4.5 |
-| [**Lightweight Women / Shorter Rowers**](docs/00-tldr-height-and-style-guide.md#shorter-rowers) | 1.10 – 1.25 m | 34 – 38+ spm | **105 – 115** *([avoid high damper](docs/01-drag-factor-vs-stroke-length.md#3-the-2k-fatigue-decay-curve-stroke-length-vs-time))* | ~3.0 – 4.0 |
+| Heavyweight or open men | 125–140 (over 75 kg) | 130 | 130 | 130 |
+| Lightweight men | 120–135 (under 75 kg) | 125 | 120 | Not stated |
+| Heavyweight or open women | 120–130 (over 61.5 kg) | 110 | 110 | 110 |
+| Lightweight women | 115–125 (under 61.5 kg) | 100 | 110 | Not stated |
+| Junior men | Not stated | 125 | 120 | Not stated |
+| Junior women | Not stated | 100 | 110 | Not stated |
 
-*For detailed setup by height and physiology, see the [**TL;DR Height & Style Playbook**](docs/00-tldr-height-and-style-guide.md). For instructions on finding your exact personal drag factor using ErgData, see the [**4 × 500m Field Calibration Protocol**](docs/01-drag-factor-vs-stroke-length.md#how-to-calibrate-your-personal-drag-factor-vs-stroke-length-sweet-spot).*
+Concept2 NZ reports the New Zealand figures for "men" and "women", with no weight classes.
 
----
+**British Rowing, children by school year:**
 
-## Key Equations at a Glance
+| School year | Girls | Boys |
+| :--- | :--- | :--- |
+| Year 7 | Below 100 to 100 | Below 100 to 100 |
+| Year 8 | 100 | 110 |
+| Year 9 | 105 | 115 |
+| Year 10 | 110–115 | 120–125 |
 
-1. **Flywheel Deceleration on Recovery** ([Detailed Rate Model](docs/02-fatigue-rate-and-catch-slip.md#1-the-mathematical-trap-why-higher-rate--more-slip-when-tired) · [Dudhia, Oxford](docs/03-references-and-literature.md#anu-dudhia-oxford-the-physics-of-rowing)):
-   $$I \frac{d\omega}{dt} = -k\omega^2 \implies \omega_{\text{min}}(R) = \frac{\omega_{\text{max}}}{1 + \frac{k}{I}\omega_{\text{max}} \left(\frac{60}{R} - T_{\text{drive}}\right)}$$
-   (where Concept2 moment of inertia $I \approx 0.1001\text{ kg}\cdot\text{m}^2$)
+**Other published ranges:**
+* Adults generally: 115–140 ([Indoor Rower Fact Sheet](docs/references.md#concept2-indoor-rower-fact-sheet-1)).
+* On-water rowers: 125–140 ([Indoor Rower Fact Sheet](docs/references.md#concept2-indoor-rower-fact-sheet-1)).
+* Youth and novice rowers: 100. Experienced heavyweights: 140 (as reported by [Cerasola et al., 2017](docs/references.md#cerasola-et-al-2017)).
 
-2. **Effective Drive Length & Catch Slip** ([Detailed Catch Slip Model](docs/01-drag-factor-vs-stroke-length.md#1-the-mechanical-model-catch-slip-vs-drive-length) · [Dudhia](docs/03-references-and-literature.md#anu-dudhia-oxford-the-physics-of-rowing) · [Kleshnev, 2016](docs/03-references-and-literature.md#valery-kleshnev-the-biomechanics-of-rowing-2016--2020)):
-   $$L_{\text{effective}} = L_{\text{total}} - L_{\text{slip}}, \quad \text{where } L_{\text{slip}} = \frac{r^2 \cdot \omega_{\text{min}}^2}{2 \cdot a_{\text{catch}}}$$
-   (where sprocket radius $r \approx 0.014\text{ m}$ and $a_{\text{catch}}$ is initial handle acceleration)
+## 3. What we know about body size
 
-3. **Kleshnev’s Handle Drag Factor (HDF)** ([Detailed Biomechanical Model](docs/01-drag-factor-vs-stroke-length.md#2-the-biomechanical-model-kleshnevs-handle-drag-factor-hdf) · [Kleshnev, RBN 2011/01](docs/03-references-and-literature.md#valery-kleshnev-biorow-handle-drag-factor)):
-   $$\text{HDF} = \frac{P_{\text{drive}}}{v_{\text{drive}}^3} = \frac{P_{\text{drive}}}{(L / T_{\text{drive}})^3}$$
+| Source | What it says | Strength of evidence |
+| :--- | :--- | :--- |
+| [Cerasola et al., 2017](docs/references.md#cerasola-et-al-2017) | 130 beat 110 and 150 on average. The published regression lines keep 130 fastest from 60 to 90 kg. | Experiment, but only 15 male youths. It covers body mass, not height, and reports no test of the differences. |
+| [Kleshnev](docs/references.md#kleshnev-how-df-on-ergometer-correlates-with-on-water-rowing) | On the erg, Handle Drag Factor has almost no correlation with rower weight or power. | Measured, but it describes how the handle loads, not which setting is best. |
+| [Metikos et al., 2015](docs/references.md#metikos-et-al-2015) | Rowers made peak power at a moderate setting, and non-rowers at the highest. | Experiment on short efforts, not a 2,000m. Abstract only. No body size result. |
+| [Olympic champion, via Concept2](docs/references.md#concept2-the-damper-and-drag-of-olympians) | "around 120-135 (depending on how big and strong the athlete is)" | One athlete's opinion. Size and strength, not height. |
+| [Coaching article](docs/references.md#coaching-article-what-drag-factor-should-you-use) | Taller, heavier and stronger rowers usually sit near the top of the range. | Opinion, no data given. |
+| [Concept2 forum](docs/references.md#concept2-forum-drag-factor) | "The older and taller you are, the more you'll want low drag." | Anecdote, in the opposite direction. |
+| [Online tools](docs/references.md#online-drag-factor-tools) | The calculators use inputs such as weight and experience, not height. | No formula shown. |
 
----
+Height advice exists only as opinion, and it points both ways. Olympians interviewed by Concept2 used about 112 to 130 ([Concept2](docs/references.md#concept2-the-damper-and-drag-of-olympians)), but the article gives no heights to compare.
 
-## Source & Attribution
+## 4. What the sources say about adjusting
 
-Synthesized and documented by **Gemini 4 Argon** (see [`AGENTS.md`](AGENTS.md)).
+| Recommendation | Source |
+| :--- | :--- |
+| Experiment before race day: row 1 minute on, 1 minute off, from a stopped flywheel at a steady 26–28 spm, changing the damper each time. | [Concept2](docs/references.md#concept2-what-damper-setting-should-i-use) |
+| Avoid very high settings: they are hard to sustain with good technique and may lead to injury. Damper 10 is rarely, if ever, recommended. | [Concept2](docs/references.md#concept2-what-damper-setting-should-i-use) |
+| Expect very low settings to need a quick, light catch. | [Concept2](docs/references.md#concept2-what-damper-setting-should-i-use) |
+| Consider a lower setting as your technique improves. | [Concept2](docs/references.md#concept2-what-damper-setting-and-drag-factor-to-use) |
+| Test on the setting you train with. | [Olympic champion, via Concept2](docs/references.md#concept2-the-damper-and-drag-of-olympians) |
+| Change the damper only during rest intervals. | [Concept2](docs/references.md#concept2-what-damper-setting-should-i-use) |
+| Set the drag factor before you race. C.R.A.S.H.-B. allows any setting but no changes once the race begins. | [C.R.A.S.H.-B. FAQ](docs/references.md#crash-b-sprints-faq) |
 
+**The sources disagree on two points:**
+* **Changing settings:** Concept2 suggests about damper 3 for longer workouts and 5 for shorter ones. The [Indoor Rower Fact Sheet](docs/references.md#concept2-indoor-rower-fact-sheet-1) says to use the same drag factor every session.
+* **Heavier or lighter:** [Kane et al., 2013](docs/references.md#kane-et-al-2013) found better economy at 150 than at 100 and suggest greater resistance may help performance. Cerasola et al. found 150 slower than 130, and Concept2 warns against setting the damper too high.
+
+## 5. What real race data shows
+
+We looked at 4,620 real 2,000m results from C.R.A.S.H.-B. and the 2019 World Rowing Indoor Championships.
+
+**This data can't support or reject any drag factor number.** [Results](https://regatta.time-team.nl/crashb/2019) and race charts record time, distance, speed and stroke rate, but not drag factor or drive length.
+
+The analysis code is archived in [`data/`](data/README.md), with the reasons it is no longer used.
+
+## Repository
+
+* [`docs/references.md`](docs/references.md): every source, with what it says.
+* [`DECISIONS.md`](DECISIONS.md): design decisions, and everything the audit found.
+* [`AGENTS.md`](AGENTS.md): rules for contributors and agents.
+* [`data/`](data/README.md): the archived race data pipeline.
+
+Generated by Gemini 4 Argon and reviewed by Claude, as directed by Dave (zvaavtre). Athlete data is pseudonymized. The code in `data/` has not been closely reviewed by a person.

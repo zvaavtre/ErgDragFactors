@@ -6,6 +6,7 @@
 #   "numpy",
 #   "pandas",
 #   "scipy",
+#   "statsmodels",
 # ]
 # ///
 """
@@ -26,7 +27,7 @@ Outputs:
   - data/charts/category_operating_map.svg
   - data/charts/within_class_spm_vs_split.svg
   - data/charts/telemetry_quarters_pacing.svg
-  - docs/04-crash-b-empirical-analysis.md
+  - data/crash-b-data.md
 """
 
 import math
@@ -38,13 +39,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import statsmodels.formula.api as smf
 from scipy import stats
 
 BASE_DIR = Path(__file__).resolve().parent
 CHARTS_DIR = BASE_DIR / "charts"
-DOCS_DIR = BASE_DIR.parent / "docs"
 
-# Physical constants from Anu Dudhia (Oxford University, Physics of Rowing)
+# Model constants. Dudhia's ergometer page does not state these values.
 CONCEPT2_INERTIA_KGM2 = 0.1001      # Flywheel moment of inertia I (kg*m^2)
 CONCEPT2_SPROCKET_RADIUS_M = 0.014  # Chain sprocket radius r (m)
 
@@ -77,7 +78,7 @@ def ols_summary(xs, ys):
 
 
 # =============================================================================
-# DOMAIN PHYSICS & BIOMECHANICAL MODELS (Dudhia Oxford & Kleshnev BioRow)
+# DOMAIN PHYSICS & BIOMECHANICAL MODELS
 # =============================================================================
 
 def watts_from_split_500(split_500_s: float) -> float:
@@ -114,7 +115,7 @@ def flywheel_omega_min(
     inertia: float = CONCEPT2_INERTIA_KGM2,
 ) -> float:
     """
-    Anu Dudhia (Oxford) analytical solution to I * d(omega)/dt = -k * omega^2
+    Analytical solution to I * d(omega)/dt = -k * omega^2
     over the unpowered recovery phase T_recovery = 60 / R - T_drive:
       omega_min(R) = omega_max / (1 + (k / I) * omega_max * (60 / R - T_drive))
     """
@@ -155,6 +156,30 @@ def handle_drag_factor(power_drive_w: float, drive_length_m: float, drive_time_s
 # MATPLOTLIB VECTOR SVG CHART GENERATORS
 # =============================================================================
 
+def height_vs_rate_model(group: pd.DataFrame) -> dict:
+    """Fit stroke rate on height per athlete, alone and with log power held constant."""
+    athletes = group.groupby("athlete_id").agg(
+        height_cm=("verified_height_cm", "first"),
+        spm=("avg_spm", "mean"),
+        watts=("avg_watts", "mean"),
+    )
+    athletes["height_10cm"] = athletes["height_cm"] / 10.0
+    athletes["log_watts"] = np.log(athletes["watts"])
+    raw = smf.ols("spm ~ height_10cm", athletes).fit()
+    adjusted = smf.ols("spm ~ height_10cm + log_watts", athletes).fit()
+    raw_ci = raw.conf_int().loc["height_10cm"]
+    adjusted_ci = adjusted.conf_int().loc["height_10cm"]
+    return {
+        "n_athletes": len(athletes),
+        "raw_slope": float(raw.params["height_10cm"]),
+        "raw_low": float(raw_ci[0]),
+        "raw_high": float(raw_ci[1]),
+        "adjusted_slope": float(adjusted.params["height_10cm"]),
+        "adjusted_low": float(adjusted_ci[0]),
+        "adjusted_high": float(adjusted_ci[1]),
+    }
+
+
 def setup_plot_style():
     plt.rcParams.update({
         "font.family": "sans-serif",
@@ -177,7 +202,7 @@ def generate_chart_1(ver_df: pd.DataFrame, out_path: Path):
     setup_plot_style()
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5.2))
     fig.suptitle(
-        "Verified Rower Height vs. Stroke Rate & Work per Stroke (C.R.A.S.H.-B. & WRIC Finalists)",
+        "Name-Matched Rower Height vs. Stroke Rate & Work per Stroke (C.R.A.S.H.-B. & WRIC)",
         fontsize=13,
         fontweight="bold",
         y=0.98,
@@ -207,12 +232,12 @@ def generate_chart_1(ver_df: pd.DataFrame, out_path: Path):
             ax2.plot(x_vals, b_w * x_vals + a_w, color=col, linestyle="--", linewidth=1.8, label=f"{name}: r={r_w:+.2f} (p={p_w:.1e})")
 
     ax1.set_title("A. Height vs. Average 2,000m Stroke Rate (spm)")
-    ax1.set_xlabel("Verified Height (cm)")
+    ax1.set_xlabel("Name-Matched Height (cm)")
     ax1.set_ylabel("Average Stroke Rate (spm)")
     ax1.legend(fontsize=8, loc="upper right")
 
     ax2.set_title("B. Height vs. Mechanical Work per Stroke (J)")
-    ax2.set_xlabel("Verified Height (cm)")
+    ax2.set_xlabel("Name-Matched Height (cm)")
     ax2.set_ylabel("Work per Stroke (Joules)")
     ax2.legend(fontsize=8, loc="upper left")
 
@@ -259,7 +284,7 @@ def generate_chart_2(cat_df: pd.DataFrame, out_path: Path):
 
     ax.set_xlim(28.5, 40.5)
     ax.set_ylim(330, 930)
-    ax.set_title("Biomechanical Operating Map: Top-25% Work per Stroke vs. Stroke Rate by Category")
+    ax.set_title("Top-25% Work per Stroke vs. Stroke Rate by Category")
     ax.set_xlabel("Top-25% Category Stroke Rate R (spm)")
     ax.set_ylabel("Top-25% Work per Stroke W_stroke (Joules)")
 
@@ -298,7 +323,7 @@ def generate_chart_3(df: pd.DataFrame, out_path: Path):
     yticks = list(range(85, 126, 5))
     ax.set_yticks(yticks)
     ax.set_yticklabels([format_split(y) for y in yticks])
-    ax.set_title("Within-Class Stroke Rate vs. 500m Split Pace (Non-Masters Championship Field)")
+    ax.set_title("Within-Class Stroke Rate vs. 500m Split Pace (Non-Masters)")
     ax.set_xlabel("Average 2,000m Stroke Rate (spm)")
     ax.set_ylabel("500m Split Pace (Faster ↑)")
     ax.legend(fontsize=8.5, loc="lower left")
@@ -335,7 +360,7 @@ def generate_chart_4(tel_df: pd.DataFrame, out_path: Path):
 
     ax1.set_xticks(q_x)
     ax1.set_xticklabels(q_labels, fontsize=8.5)
-    ax1.set_title("A. Parabolic Championship Cadence Curve (Q1 → Q4)")
+    ax1.set_title("A. Mean Stroke Rate by Quarter (Q1 → Q4)")
     ax1.set_ylabel("Quarter Stroke Rate (spm)")
     ax1.legend(fontsize=8.5)
 
@@ -417,30 +442,13 @@ def main():
     tel_df = pd.read_csv(tel_path) if tel_path.exists() else pd.DataFrame()
 
     # =========================================================================
-    # 1. VERIFIED HEIGHT COHORT EVALUATION (De-confounded by Weight Class)
+    # 1. NAME-MATCHED HEIGHT COHORT EVALUATION
     # =========================================================================
     ver_df = df.dropna(subset=["verified_height_cm"]).copy()
     ver_m = ver_df[ver_df["sex"] == "M"]
     ver_w = ver_df[ver_df["sex"] == "W"]
     ver_m_hwt = ver_m[ver_m["weight_class"] == "Open/Heavyweight"]
-    ver_m_lwt = ver_m[ver_m["weight_class"].isin(["Lightweight", "Flyweight"])]
     ver_w_hwt = ver_w[ver_w["weight_class"] == "Open/Heavyweight"]
-
-    corr_m_h_spm = ols_summary(ver_m["verified_height_cm"], ver_m["avg_spm"])
-    corr_m_h_work = ols_summary(ver_m["verified_height_cm"], ver_m["work_per_stroke_j"])
-    corr_m_h_watts = ols_summary(ver_m["verified_height_cm"], ver_m["avg_watts"])
-    corr_m_h_time = ols_summary(ver_m["verified_height_cm"], ver_m["finish_time_s"])
-
-    corr_m_hwt_spm = ols_summary(ver_m_hwt["verified_height_cm"], ver_m_hwt["avg_spm"])
-    corr_m_hwt_work = ols_summary(ver_m_hwt["verified_height_cm"], ver_m_hwt["work_per_stroke_j"])
-    corr_m_lwt_spm = ols_summary(ver_m_lwt["verified_height_cm"], ver_m_lwt["avg_spm"])
-
-    corr_w_h_spm = ols_summary(ver_w["verified_height_cm"], ver_w["avg_spm"])
-    corr_w_h_work = ols_summary(ver_w["verified_height_cm"], ver_w["work_per_stroke_j"])
-    corr_w_h_watts = ols_summary(ver_w["verified_height_cm"], ver_w["avg_watts"])
-    corr_w_h_time = ols_summary(ver_w["verified_height_cm"], ver_w["finish_time_s"])
-    corr_w_hwt_spm = ols_summary(ver_w_hwt["verified_height_cm"], ver_w_hwt["avg_spm"])
-    corr_w_hwt_work = ols_summary(ver_w_hwt["verified_height_cm"], ver_w_hwt["work_per_stroke_j"])
 
     height_bands = [
         ("M", "Very Tall Men (>= 198 cm / 6'6\"+)", ver_m[ver_m["verified_height_cm"] >= 198.0]),
@@ -567,146 +575,110 @@ def main():
     # =========================================================================
     # 5. GENERATE MARKDOWN REPORT WITH DYNAMICALLY COMPUTED METRICS
     # =========================================================================
-    vt_men = ver_m[ver_m["verified_height_cm"] >= 198.0]
-    n_vt_above_950 = int((vt_men["work_per_stroke_j"] > 950.0).sum())
     n_unique_heights = int(ver_df["athlete_id"].nunique())
+    n_masters_or_u19 = int(ver_df["age_category"].isin(["Masters", "U19/Junior"]).sum())
+    tel_masters_pct = 100.0 * float((tel_df["age_category"] == "Masters").mean())
+    all_masters_pct = 100.0 * float((df["age_category"] == "Masters").mean())
 
-    open_u23_cats = cat_df[cat_df["age_category"].isin(["Open/Senior", "U23"])].copy()
-    open_u23_rs = [float(x) for x in open_u23_cats["corr_spm_vs_time_r"] if x != ""]
-    all_rs = [float(x) for x in cat_df["corr_spm_vs_time_r"] if x != ""]
-
-    lwt_open_m = cat_df[(cat_df["sex"] == "M") & (cat_df["weight_class"] == "Lightweight") & (cat_df["age_category"] == "Open/Senior")].iloc[0]
-    lwt_u23_m = cat_df[(cat_df["sex"] == "M") & (cat_df["weight_class"] == "Lightweight") & (cat_df["age_category"] == "U23")].iloc[0]
-    hwt_open_m = cat_df[(cat_df["sex"] == "M") & (cat_df["weight_class"] == "Open/Heavyweight") & (cat_df["age_category"] == "Open/Senior")].iloc[0]
-    hwt_u23_m = cat_df[(cat_df["sex"] == "M") & (cat_df["weight_class"] == "Open/Heavyweight") & (cat_df["age_category"] == "U23")].iloc[0]
-
-    report_path = DOCS_DIR / "04-crash-b-empirical-analysis.md"
-    lines = [
-        "# Empirical Analysis: C.R.A.S.H.-B. & World Indoor Championship Data (2018–2026)",
-        "",
-        f"This document summarizes the empirical findings from **{len(df):,} individual 2,000m championship race records** and **{len(tel_df):,} 1 Hz PM5 race-chart telemetry logs** harvested from the **C.R.A.S.H.-B. Sprints (2018, 2019, 2020, 2022, 2023, 2025, 2026)** and the **World Rowing Indoor Championships (WRIC 2019)**.",
-        "",
-        "*(Note: The 2021 and 2024 C.R.A.S.H.-B. editions are not hosted on the Time-Team regatta server and are not included in this dataset.)*",
-        "",
-        "---",
-        "",
-        "## 1. Scope, Methodological Limitations & Dataset Architecture",
-        "",
-        "> [!IMPORTANT]",
-        "> **What This Dataset Can and Cannot Test:**",
-        "> 1. **No Direct Drag Factor ($k$) or Handle Drive-Length ($L$) Telemetry:** Public Time-Team race results and 1 Hz PM5 race charts record split times, average power ($P = 2.80 v^3$), stroke rate (`spm`), speed ($v$), Distance Per Stroke ($\\text{DPS}$), and Work Per Stroke ($W_{\\text{stroke}}$). They **do not** log the PM5 Drag Factor ($k$), physical handle travel ($L_{\\text{effective}}$), or catch slip ($L_{\\text{slip}}$). Therefore, this empirical analysis evaluates the **rate ($R$) vs. work-per-stroke ($W_{\\text{stroke}}$) operating map across stature/weight classes** and **quarter-by-quarter pacing trajectories**, rather than directly testing drag-factor settings.",
-        f"> 2. **Verified Heights Only ($n = {len(ver_df)}$ starts across {n_unique_heights} athletes):** Physical stature (`verified_height_cm`) and estimated reach ($L_{{\\text{{est}}}} = 0.0078 \\cdot H_{{\\text{{cm}}}} - 0.08\\text{{ m}}$) are populated **strictly** for athletes matched to public [Wikidata SPARQL, Olympic/Olympedia, and NCAA/IRA collegiate varsity rosters](03-references-and-literature.md#6-empirical-regatta--anthropometric-height-data-sources) via [`data/build_athlete_heights.py`](../data/build_athlete_heights.py) using `rapidfuzz` token normalization. Unverified rowers have no fabricated height values and are analyzed solely by their recorded competition category (`sex`, `weight_class`, `age_category`).",
-        "> 3. **Pseudonymization:** Athlete names are replaced upon ingestion with a 12-character keyed SHA-256 pseudonym (`athlete_id`). Because public regatta finish times and event codes are inherently linkable to public results pages, this dataset is **pseudonymized** rather than k-anonymous.",
-        "> 4. **C.R.A.S.H.-B. & WRIC Drag Factor Rules (\"The Charley Butt Rule\"):** Contrary to a common misconception, C.R.A.S.H.-B. Sprints and WRIC rules **do not mandate a 130–140 drag factor**. Competitors may set the damper/drag factor to **any value they choose** prior to the start, provided it is not adjusted after the race begins ([C.R.A.S.H.-B. Official Rules & FAQ](03-references-and-literature.md#crash-b-sprints-official-drag-factor-faq--the-charley-butt-rule)). (Strict 125–140 or fixed-130 requirements come instead from national federation testing protocols such as British Rowing, Rowing Australia, and Rowing Canada; see [Section 5 of References](03-references-and-literature.md#5-championship-regatta-rules--national-federation-testing-protocols).)",
-        "",
-        "| Dataset / Artifact | Records | Description |",
-        "| :--- | :--- | :--- |",
-        f"| [`data/crashb_2k_summary.csv`](../data/crashb_2k_summary.csv) | **{len(df):,}** | All individual 2,000m non-adaptive race results across 8 regatta editions with 500m splits, Watts ($P = 2.80 v^3$), average stroke rate (`avg_spm`), Distance Per Stroke ($\\text{{DPS}}$), and Work Per Stroke ($W_{{\\text{{stroke}}}}$). |",
-        f"| [`data/athlete_heights.csv`](../data/athlete_heights.csv) | **{n_unique_heights}** ({len(ver_df)} races) | Reproducible lookup table of verified physical heights (`height_cm`) downloaded and matched by [`data/build_athlete_heights.py`](../data/build_athlete_heights.py), keyed by pseudonymized `athlete_id`. |",
-        f"| [`data/crashb_quarter_telemetry.csv`](../data/crashb_quarter_telemetry.csv) | **{len(tel_df):,}** | Quarter-by-quarter ($Q_1 \\dots Q_4$) stroke rate ($R_{{Q1}} \\dots R_{{Q4}}$), speed, and distance-per-stroke extracted from 1 Hz PM5 race-chart telemetry (enriched for Open/Senior, U23, Lightweight, and podium heats). |",
-        f"| [`data/eval_height_vs_rate_summary.csv`](../data/eval_height_vs_rate_summary.csv) | **{len(height_summary_rows)}** bands | Aggregated evaluation of verified height ($H$) vs. stroke rate ($R$), work per stroke, and 2k speed. |",
-        f"| [`data/eval_category_summary.csv`](../data/eval_category_summary.csv) | **{len(cat_df)}** categories | Breakdown across Sex, Weight Class (`Open/Heavyweight`, `Lightweight`, `Flyweight`), and Age Category (`U15`, `U17`, `U19`, `U23`, `Open/Senior`, `Masters`). |",
-        f"| [`data/eval_telemetry_pacing_summary.csv`](../data/eval_telemetry_pacing_summary.csv) | **{len(pacing_summary_rows)}** cohorts | Quarter-by-quarter cadence and split pacing evaluation. |",
-        "| [`data/charts/*.svg`](../data/charts/) | **4** charts | Vector SVG charts generated via `matplotlib` by [`data/evaluate_crashb.py`](../data/evaluate_crashb.py). |",
-        "",
-        "---",
-        "",
-        f"## 2. Finding 1: Verified Height ($H$) vs. Stroke Rate ($R$) & Work per Stroke ($n = {len(ver_df)}$ Starts)",
-        "",
-        "![Verified Height vs. Stroke Rate and Work per Stroke](../data/charts/height_vs_spm_and_work.svg)",
-        "",
-        "| Sex | Stature Band | Races ($n$) | Mean Height | Est. Reach ($L$) | Mean Rate ($R$) | Mean 2k Time (Split) | Mean Power ($P$) | Work / Stroke ($W_{\\text{stroke}}$) |",
-        "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
+    senior_ages = ["Open/Senior", "U23"]
+    height_models = [
+        ("Men, open/heavyweight", height_vs_rate_model(ver_m_hwt)),
+        ("Women, open/heavyweight", height_vs_rate_model(ver_w_hwt)),
+        ("Men, open/heavyweight, senior and U23", height_vs_rate_model(ver_m_hwt[ver_m_hwt["age_category"].isin(senior_ages)])),
+        ("Women, open/heavyweight, senior and U23", height_vs_rate_model(ver_w_hwt[ver_w_hwt["age_category"].isin(senior_ages)])),
     ]
+
+    no_height_link = all(m["adjusted_low"] < 0.0 < m["adjusted_high"] for _, m in height_models)
+    no_height_link_text = (
+        "With power held constant, every interval includes zero, so height shows no detectable link to stroke rate. The intervals are wide, so this does not prove there is no link."
+        if no_height_link
+        else "With power held constant, at least one interval excludes zero, so height may relate to stroke rate in that group."
+    )
+
+    report_path = BASE_DIR / "crash-b-data.md"
+    lines = [
+        "# C.R.A.S.H.-B. Data Check",
+        "",
+        "**Question:** can C.R.A.S.H.-B. race data back a starting drag factor by height?",
+        "",
+        "**Answer: no.** The data never records which drag factor anyone used, so it cannot show that any height should use any setting.",
+        "",
+        "This file is generated by [`evaluate_crashb.py`](evaluate_crashb.py). Do not edit it by hand. See [`README.md`](README.md) for why this pipeline is archived.",
+        "",
+        "## What the data contains",
+        "",
+        "| Field | In the data? |",
+        "| :--- | :--- |",
+        f"| 2,000m results with splits and average stroke rate | Yes: {len(df):,} results |",
+        f"| Race charts (time, distance, speed and stroke rate only) | Yes: {len(tel_df):,} charts |",
+        f"| Height | Partly: {n_unique_heights} athletes across {len(ver_df)} starts, matched by name |",
+        "| Body weight | Competition class only |",
+        "| **Drag factor** | **No** |",
+        "| **Drive length** | **No** |",
+        "",
+        "The results come from the C.R.A.S.H.-B. Sprints (2018, 2019, 2020, 2022, 2023, 2025, 2026) and the 2019 World Rowing Indoor Championships.",
+        "",
+        "## Why it cannot back a height rule",
+        "",
+        "* **The setting is unknown.** [C.R.A.S.H.-B. lets rowers choose any drag factor](../docs/references.md#crash-b-sprints-faq), and neither results nor race charts record it.",
+        "* **Results do not reveal it.** The monitor [accounts for damping](../docs/references.md#dudhia-the-physics-of-rowing), so a split looks the same whatever setting produced it.",
+        "* **Drive length is missing too.** A height rule assumes taller rowers need a different setting because of their drive length, and that link cannot be checked here.",
+        "",
+        "## The closest indirect check",
+        "",
+        "The data can show whether taller rowers race differently. This does not test drag factor. It only asks whether height relates to stroke rate, using one row per athlete.",
+        "",
+        "| Group | Athletes | Rate change per +10 cm | With power held constant |",
+        "| :--- | :--- | :--- | :--- |",
+    ]
+
+    for label, model in height_models:
+        lines.append(
+            f"| {label} | {model['n_athletes']} | "
+            f"{model['raw_slope']:+.2f} spm ({model['raw_low']:+.2f} to {model['raw_high']:+.2f}) | "
+            f"{model['adjusted_slope']:+.2f} spm ({model['adjusted_low']:+.2f} to {model['adjusted_high']:+.2f}) |"
+        )
+
+    lines.extend([
+        "",
+        "Ranges are 95% confidence intervals. Work per stroke follows directly from power and rate, so it adds no separate test.",
+        "",
+        no_height_link_text,
+        "",
+        "## Limits",
+        "",
+        f"* **Heights are name matches, not confirmed identities.** Names were matched by sex, surname and fuzzy score, with no birth-year check. {n_masters_or_u19} of {len(ver_df)} starts are Masters or U19, so some matches may be the wrong person.",
+        f"* **Race charts are not a random sample.** Masters are {tel_masters_pct:.1f}% of charts but {all_masters_pct:.0f}% of results. The cached selection cannot be rebuilt from an empty cache.",
+        "* **2021 is not included.** Time-Team hosts a [2021 results page](https://regatta.time-team.nl/crashb/2021/results/events.php) that this pipeline does not parse. There is no 2024 page.",
+        "* **Correlation only.** These are observational results, not experiments.",
+        "* **Pseudonymized, not anonymous.** Names are replaced with hashed IDs, but public times and event codes still link to public results.",
+        "",
+        "## Name-matched height summary",
+        "",
+        "![Name-matched height vs. stroke rate and work per stroke](charts/height_vs_spm_and_work.svg)",
+        "",
+        "| Sex | Height band | Starts | Mean height | Mean rate | Mean 2k time (split) | Mean power | Work per stroke |",
+        "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
+    ])
 
     for hr in height_summary_rows:
         t_fmt = format_split(hr["mean_finish_time_s"])
         lines.append(
-            f"| **{hr['sex']}** | {hr['stature_band']} | {hr['n_races']} | "
-            f"**{hr['mean_height_cm']:.1f} cm** | {hr['mean_est_drive_length_m']:.2f} m | "
-            f"**{hr['mean_spm']:.1f} ± {hr['sd_spm']:.1f} spm** | {t_fmt} ({hr['mean_split_500']}) | "
-            f"{hr['mean_watts']:.0f} W | **{hr['mean_work_per_stroke_j']:.0f} J** |"
+            f"| {hr['sex']} | {hr['stature_band']} | {hr['n_races']} | "
+            f"{hr['mean_height_cm']:.1f} cm | "
+            f"{hr['mean_spm']:.1f} ± {hr['sd_spm']:.1f} spm | {t_fmt} ({hr['mean_split_500']}) | "
+            f"{hr['mean_watts']:.0f} W | {hr['mean_work_per_stroke_j']:.0f} J |"
         )
 
     lines.extend([
         "",
-        "### Pooled vs. Within-Weight-Class Correlations (De-Confounding Weight Class)",
-        "Because the verified-height sample spans both `Open/Heavyweight` and `Lightweight`/`Flyweight` athletes, pooling across weight classes mixes stature with body mass. Below we report **both** the pooled regressions and the **within-weight-class** regressions:",
-        "",
-        f"* **Men Pooled ($n = {len(ver_m)}$):**",
-        f"  * **Height vs. Stroke Rate ($R$):** $r = {corr_m_h_spm[0]:+.3f}$ (slope $= {corr_m_h_spm[1]*10:+.1f}\\text{{ spm per +10 cm}}$, $p = {corr_m_h_spm[4]:.4f}$).",
-        f"  * **Height vs. Work per Stroke ($W_{{\\text{{stroke}}}}$):** $r = {corr_m_h_work[0]:+.3f}$ (slope $= {corr_m_h_work[1]*10:+.0f}\\text{{ J per +10 cm}}$, $p = {corr_m_h_work[4]:.2e}$).",
-        f"  * **Height vs. 2,000m Watts ($P$):** $r = {corr_m_h_watts[0]:+.3f}$ ($p = {corr_m_h_watts[4]:.2e}$); **Height vs. Finish Time:** $r = {corr_m_h_time[0]:+.3f}$ ($p = {corr_m_h_time[4]:.2e}$).",
-        f"* **Men Within-Weight-Class:**",
-        f"  * **Open/Heavyweight Men Only ($n = {len(ver_m_hwt)}$):** Height vs. Rate $r = {corr_m_hwt_spm[0]:+.3f}$ ($p = {corr_m_hwt_spm[4]:.3f}$); Height vs. Work per Stroke $r = {corr_m_hwt_work[0]:+.3f}$ ($p = {corr_m_hwt_work[4]:.3f}$).",
-        f"  * **Lightweight/Flyweight Men Only ($n = {len(ver_m_lwt)}$):** Height vs. Rate $r = {corr_m_lwt_spm[0]:+.3f}$ ($p = {corr_m_lwt_spm[4]:.3f}$).",
-        f"* **Women Pooled ($n = {len(ver_w)}$):**",
-        f"  * **Height vs. Stroke Rate ($R$):** $r = {corr_w_h_spm[0]:+.3f}$ (slope $= {corr_w_h_spm[1]*10:+.1f}\\text{{ spm per +10 cm}}$, $p = {corr_w_h_spm[4]:.4f}$).",
-        f"  * **Height vs. Work per Stroke ($W_{{\\text{{stroke}}}}$):** $r = {corr_w_h_work[0]:+.3f}$ (slope $= {corr_w_h_work[1]*10:+.0f}\\text{{ J per +10 cm}}$, $p = {corr_w_h_work[4]:.2e}$).",
-        f"  * **Open/Heavyweight Women Only ($n = {len(ver_w_hwt)}$):** Height vs. Rate $r = {corr_w_hwt_spm[0]:+.3f}$ ($p = {corr_w_hwt_spm[4]:.3f}$); Height vs. Work per Stroke $r = {corr_w_hwt_work[0]:+.3f}$ ($p = {corr_w_hwt_work[4]:.3f}$).",
-        "",
-        f"> **Empirical Takeaway:** In the Very Tall Men band ($\\ge 198\\text{{ cm}}$, $n = {len(vt_men)}$), athletes average **{vt_men['avg_spm'].mean():.1f} ± {vt_men['avg_spm'].std(ddof=1):.1f} spm** and **{vt_men['work_per_stroke_j'].mean():.0f} J/stroke** (with {n_vt_above_950} of {len(vt_men)} starts exceeding $950\\text{{ J/stroke}}$), whereas Medium/Lightweight Men ($< 190\\text{{ cm}}$, $n = {len(ver_m[ver_m['verified_height_cm'] < 190.0])}$) average **{ver_m[ver_m['verified_height_cm'] < 190.0]['avg_spm'].mean():.1f} spm** and **{ver_m[ver_m['verified_height_cm'] < 190.0]['work_per_stroke_j'].mean():.0f} J/stroke**.",
-        "",
-        "---",
-        "",
-        f"## 3. Finding 2: Weight & Age Category Comparison ($N = {len(df):,}$ Races)",
-        "",
-        "![Biomechanical Operating Map by Stature Category](../data/charts/category_operating_map.svg)",
-        "",
-        "![Within-Class Stroke Rate vs. 2000m Split Pace](../data/charts/within_class_spm_vs_split.svg)",
-        "",
-        "| Sex | Weight Class | Age Category | $N$ | All Mean Rate | Top-25% Rate ($R$) | Top-25% Split | Top-25% Work/Stroke | Rate vs. Time ($r$) | $p$-value |",
-        "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
-    ])
-
-    for _, cr in cat_df.iterrows():
-        lines.append(
-            f"| **{cr['sex']}** | {cr['weight_class']} | {cr['age_category']} | {cr['n_total']} | "
-            f"{cr['mean_spm_all']:.1f} spm | **{cr['top25_mean_spm']:.1f} spm** | {cr['top25_mean_split']} | "
-            f"{cr['top25_mean_work_j']:.0f} J | `{cr['corr_spm_vs_time_r']}` | `{cr['corr_spm_vs_time_p']}` |"
-        )
-
-    lines.extend([
-        "",
-        "### Key Structural Observations Across the Full Dataset",
-        f"1. **Elite Lightweight Men vs. Open Heavyweight Men:** In `Open/Senior` and `U23`, the top quartile of Lightweight Men averages **{lwt_u23_m['top25_mean_spm']:.1f}–{lwt_open_m['top25_mean_spm']:.1f} spm** ({lwt_u23_m['top25_mean_work_j']:.0f}–{lwt_open_m['top25_mean_work_j']:.0f} J/stroke), whereas `Open/Heavyweight` Men average **{hwt_u23_m['top25_mean_spm']:.1f}–{hwt_open_m['top25_mean_spm']:.1f} spm** while generating **{hwt_u23_m['top25_mean_work_j']:.0f}–{hwt_open_m['top25_mean_work_j']:.0f} J/stroke**.",
-        f"2. **Within-Class Rate vs. Time Correlations & Age Confounding in Masters:** Across all {len(cat_df)} categories, `corr_spm_vs_time_r` spans **`{min(all_rs):+.3f}` to `{max(all_rs):+.3f}`** (and **`{min(open_u23_rs):+.3f}` to `{max(open_u23_rs):+.3f}`** across `Open/Senior` and `U23` categories). In competitive senior/collegiate cohorts (such as Open/U23 Lightweight Men at $r = {lwt_open_m['corr_spm_vs_time_r']}$ / ${lwt_u23_m['corr_spm_vs_time_r']}$ and Open/U23 Heavyweight Men at $r = {hwt_open_m['corr_spm_vs_time_r']}$ / ${hwt_u23_m['corr_spm_vs_time_r']}$), higher stroke rate correlates strongly with faster finish times. By contrast, in pooled `Masters` categories (which span ages 27 through 95+) and small novice `U15` heats, age and experience differences dominate finish times and attenuate the raw rate correlation.",
-        "",
-        "---",
-        "",
-        f"## 4. Finding 3: Quarter-by-Quarter Telemetry ($Q_1 \\to Q_4$, $n = {len(tel_df)}$)",
-        "",
-        "*(Note on Stratification: In the bottom two rows below, races are conditioned on their third-quarter split delta $Q_3 - Q_1$ to compare how stroke rate $R$ and Distance Per Stroke $\\text{DPS}$ evolve in even-paced pieces versus positive-split fades. The $Q_3 - Q_1$ split difference is the grouping criterion itself, while the resulting rate and $\\text{DPS}$ curves reflect physiological fatigue rather than a mechanical flywheel effect.)*",
-        "",
-        "![PM5 Telemetry Quarter-by-Quarter Stroke Rate and Split Decay](../data/charts/telemetry_quarters_pacing.svg)",
-        "",
-        "| Telemetry Cohort | Races ($n$) | $Q_1$ Rate | $Q_2$ Rate | $Q_3$ Rate | $Q_4$ Rate | $Q_1$ Split | $Q_3$ Split | $Q_3 - Q_1$ Delta | $Q_3 - Q_2$ DPS |",
-        "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
-    ])
-
-    for pr in pacing_summary_rows:
-        q1_fmt = format_split(pr["q1_split_s"]) if pr["q1_split_s"] != "" else "-"
-        q3_fmt = format_split(pr["q3_split_s"]) if pr["q3_split_s"] != "" else "-"
-        decay_str = f"{pr['q3_minus_q1_split_s']:+.2f} s" if pr["q3_minus_q1_split_s"] != "" else "-"
-        lines.append(
-            f"| **{pr['cohort']}** | {pr['n_races']} | {pr['q1_spm']:.1f} spm | {pr['q2_spm']:.1f} spm | "
-            f"{pr['q3_spm']:.1f} spm | **{pr['q4_spm']:.1f} spm** | {q1_fmt} | {q3_fmt} | **{decay_str}** | `{pr['q3_minus_q2_dps_m']:+.3f} m` |"
-        )
-
-    lines.extend([
-        "",
-        "---",
-        "",
-        "## 5. Reproducing the Pipeline & Running Verification Tests",
-        "",
-        "Run the complete data, evaluation, and test pipeline from the [`data/`](../data/) directory using `make`:",
+        "## Reproduce",
         "",
         "```bash",
         "cd data",
-        "make all        # Builds athlete_heights.csv, runs fetch_crashb.py, evaluate_crashb.py, and test_math.py",
-        "make test       # Runs pytest / unittest mathematical and dataset integrity verification suite",
-        "make evaluate   # Re-runs statistical evaluations and regenerates SVG charts in data/charts/",
-        "make clean-raw  # Deletes git-ignored raw HTML/telemetry caches in data/raw/",
+        "make all        # Build heights, fetch results, evaluate, and test",
+        "make evaluate   # Rebuild the evaluation CSVs, charts, and this file",
+        "make test       # Run the math and dataset checks",
         "```",
         "",
     ])

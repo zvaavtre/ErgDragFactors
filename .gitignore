@@ -5,3 +5,8 @@ __pycache__/
 *.pyc
 .DS_Store
 .idea/
+
+# Archived pipeline outputs: rebuild with data/Makefile
+data/*.csv
+data/charts/
+data/crash-b-data.md

@@ -9,13 +9,14 @@
 #   "matplotlib",
 #   "pytest",
 #   "rapidfuzz",
+#   "statsmodels",
 # ]
 # ///
 """
 Automated Verification Suite for ErgDragFactors Mathematical & Empirical Models.
 
 Uses established scientific libraries (`scipy`, `numpy`, `pandas`, `pytest`) to prove:
-1. Concept2 Ergometer Physics & Kinematics (Dudhia 2000; Concept2 PM5 formulation).
+1. Concept2 Ergometer Physics & Kinematics (Concept2 cubic power law).
 2. Flywheel Recovery Deceleration ODE against `scipy.integrate.solve_ivp` (RK45).
 3. Catch Slip & Kleshnev Handle Drag Factor (HDF) Scaling Invariants.
 4. Anthropometric Height -> Drive Length Proxy & Empirical Regressions (`scipy.stats`).
@@ -23,6 +24,7 @@ Uses established scientific libraries (`scipy`, `numpy`, `pandas`, `pytest`) to 
 6. Dataset Integrity across `athlete_heights.csv`, `crashb_2k_summary.csv`, and `crashb_quarter_telemetry.csv`.
 """
 
+import re
 import sys
 from pathlib import Path
 
@@ -40,9 +42,14 @@ import build_athlete_heights
 import evaluate_crashb
 import fetch_crashb
 
+requires_outputs = pytest.mark.skipif(
+    not (DATA_DIR / "crashb_2k_summary.csv").exists(),
+    reason="Pipeline outputs are git-ignored; run `make all` to build them.",
+)
+
 
 # ==============================================================================
-# 1. Rowing Physics & Biomechanical Model Equations (Docs 00, 01, 02)
+# 1. Rowing Physics & Biomechanical Model Equations
 # ==============================================================================
 
 def dudhia_omega_min_numerical(
@@ -243,6 +250,7 @@ def test_parse_event_page_2022_extra_column():
 # 4. Dataset Integrity & Invariant Tests
 # ==============================================================================
 
+@requires_outputs
 def test_athlete_heights_csv_integrity():
     """Verify athlete_heights.csv is reproducible, contains no hardcoded PII/source_tier, and matches schema."""
     csv_path = DATA_DIR / "athlete_heights.csv"
@@ -257,6 +265,7 @@ def test_athlete_heights_csv_integrity():
     assert build_athlete_heights.normalize_name("Lukáš Helešic (CZE)") == "lukas helesic"
 
 
+@requires_outputs
 def test_crashb_2k_summary_csv_invariants():
     """Verify crashb_2k_summary.csv has >0 rows for every regatta (including 2022) and exact physics."""
     csv_path = DATA_DIR / "crashb_2k_summary.csv"
@@ -299,15 +308,40 @@ def test_crashb_2k_summary_csv_invariants():
     assert np.allclose(has_spm["work_per_stroke_j"], 2.80 * (v_spm ** 3) * 60.0 / has_spm["avg_spm"], atol=0.2)
 
 
-def test_doc04_has_no_stale_hardcoded_claims():
-    """Verify docs/04-crash-b-empirical-analysis.md matches dynamically computed statistics."""
-    doc_path = DATA_DIR.parent / "docs" / "04-crash-b-empirical-analysis.md"
-    assert doc_path.exists()
-    text = doc_path.read_text(encoding="utf-8")
-    # Ensure old hardcoded claims flagged in review are absent
-    assert "32.2–34.5" not in text
-    assert "Flywheel Die-Off" not in text
-    assert "4,620" in text
+def test_height_vs_rate_model_uses_one_row_per_athlete():
+    """Verify repeat starts collapse to one athlete and known slopes are recovered."""
+    rng = np.random.default_rng(7)
+    heights = rng.uniform(170.0, 205.0, 60)
+    watts = rng.uniform(200.0, 500.0, 60)
+    spm = 2.0 * heights / 10.0 + 8.0 * np.log(watts) + rng.normal(0.0, 0.01, 60)
+    athletes = pd.DataFrame({
+        "athlete_id": [f"a{i}" for i in range(60)],
+        "verified_height_cm": heights,
+        "avg_spm": spm,
+        "avg_watts": watts,
+    })
+    model = evaluate_crashb.height_vs_rate_model(pd.concat([athletes, athletes]))
+    assert model["n_athletes"] == 60
+    assert model["adjusted_low"] < 2.0 < model["adjusted_high"]
+
+
+@requires_outputs
+def test_crash_b_doc_matches_dataset():
+    """Verify the generated data report agrees with the dataset size."""
+    race_count = f"{len(pd.read_csv(DATA_DIR / 'crashb_2k_summary.csv')):,}"
+    report = (DATA_DIR / "crash-b-data.md").read_text(encoding="utf-8")
+    assert race_count in report
+    assert "| **Drag factor** | **No** |" in report
+
+
+def test_reference_links_resolve():
+    """Verify every references.md anchor used by the README and data/README.md exists."""
+    repo_dir = DATA_DIR.parent
+    headings = re.findall(r"^#+ (.+)$", (repo_dir / "docs" / "references.md").read_text(encoding="utf-8"), re.M)
+    anchors = {re.sub(r"[^\w\- ]", "", h.lower()).replace(" ", "-") for h in headings}
+    for doc in (repo_dir / "README.md", DATA_DIR / "README.md"):
+        for anchor in re.findall(r"references\.md#([^)]+)\)", doc.read_text(encoding="utf-8")):
+            assert anchor in anchors, f"{doc.name}: {anchor}"
 
 
 if __name__ == "__main__":

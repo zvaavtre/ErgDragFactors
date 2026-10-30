@@ -96,7 +96,7 @@ def make_athlete_id(name: str) -> str:
 
 
 def est_drive_len_from_height(height_cm: float) -> float:
-    """Kleshnev BioRow anthropometric model: L_est = 0.0078 * H_cm - 0.08 (m)."""
+    """Internal, unpublished estimate: L_est = 0.0078 * H_cm - 0.08 (m)."""
     return round(0.0078 * height_cm - 0.08, 3)
 
 
