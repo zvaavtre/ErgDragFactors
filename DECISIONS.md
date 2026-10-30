@@ -52,7 +52,7 @@ Sections 1–4 are the original record and are left as written. Many of their li
 
 ## 5. Audit: What Argon Wrote vs. What We Found (2026-10-30)
 
-We checked the original content against its cited sources and the data. Sources were opened directly where possible. Ingham, Soper & Hume, and Kane (2008 and 2013) were checked from their abstracts only. The original files remain in Git history.
+We checked the original content against its cited sources and the data. Sources were opened directly where possible. Ingham and Kane 2008 were checked from their abstracts only. The original files remain in Git history.
 
 ### Recommendations with no source
 
@@ -68,7 +68,7 @@ We checked the original content against its cited sources and the data. Sources 
 | Quarter-by-quarter pacing model and Strategies A and B | Our own model, presented alongside citations. | Removed |
 | Catch slip of 15–25 cm, drive length collapsing 8–15 cm, a 5 cm warning threshold | No source for any of these numbers. | Removed |
 | "Empirical 2k telemetry studies" showing a U-shaped failure model | No such study was found. | Removed |
-| High drag causing muscle fatigue and back failure by 1,000m, citing Kane and Soper & Hume | The abstracts do not show this. Kane 2008 used incremental tests. | Removed |
+| High drag causing muscle fatigue and back failure by 1,000m, citing Kane and Soper & Hume | Soper & Hume never mentions drag factor. Kane 2008's abstract does not show this, and it used incremental tests. | Removed |
 
 ### Citation errors
 
@@ -82,13 +82,14 @@ We checked the original content against its cited sources and the data. Sources 
 | Dudhia as the source for clutch engagement and catch slip | His page does not mention a clutch or a catch-slip model. | Removed |
 | Dudhia as the source for $I \approx 0.1001$ | His page gives no value for the flywheel. | Removed |
 | Ingham: lean body mass, sitting height and arm span | The abstract lists physiological, force, power and stroke length measures instead. | Removed |
-| Soper & Hume: lumbar shear and ergometer resistance settings | The abstract does not discuss these. | Removed |
+| Soper & Hume: lumbar shear and ergometer resistance settings | The full text covers lumbar posture, but never mentions shear or drag factor. | Removed |
 | Rowing Canada: Open Women 120 | The document says 110. | Corrected |
 | Rowing Canada: "National Testing and Monitoring, Nov 2020" | The title is *National NextGen Testing and Monitoring Strategy 2021–2024*. | Corrected |
 | British Rowing: GB senior trials at about 135–138 | Not in the cited document. | Removed |
 | WRIC shares the C.R.A.S.H.-B. drag factor rule | Not verified. Only the C.R.A.S.H.-B. FAQ was confirmed. | Removed |
 | Concept2 damper and drag factor article links | Both returned 404. | Replaced |
-| Kleshnev RBN 2011/01 link | It redirects to the BioRow homepage. | Replaced with RBN 2020/01 |
+| Kleshnev RBN 2011/01 link | It redirects to the BioRow homepage. | Replaced with a direct PDF link |
+| RBN 2011/01 shows HDF scaling with rower weight on the water | The issue does not discuss rower weight. | Removed |
 | Kleshnev's book on catch factor and drag loads | Not read, and the description could not be confirmed. | Removed |
 | Concept2 ErgData: reported drive length is the engaged length | Concept2's drive length article does not say how it is measured. | Removed |
 | "Audited every reference" against primary publications | The audit missed the errors listed above. | Superseded |
@@ -128,9 +129,11 @@ We checked the original content against its cited sources and the data. Sources 
 
 ## 7. Refocus and Archive (2026-10-30)
 
-* **Main Question:** The repository now asks whether any data backs a starting drag factor by height. The answer is no: no verified study or dataset pairs the two, and race data has no drag factor.
+* **Main Question:** The repository now asks whether any data backs a starting drag factor by height. The answer is no: no official source or dataset gives one, race data has no drag factor, and the one study that tested height saw no effect. Concept2 UK's guide gives a general rule by size, with no numbers or data.
 * **Published Recommendations Only:** The README keeps only published numbers and sourced advice, framed as starting points.
 * **Author's Note:** Removed the README's AI;DR advice and the line about tall rowers, because they had no source.
 * **Pipeline Archived:** The race data could not answer the question, so the Python code moved out of the main story. It stays in [`data/`](data/README.md) with a README explaining why. CSVs, charts and the report are no longer tracked.
 * **Height Check:** The last analysis used a per-athlete `statsmodels` regression, with and without power. Its results are recorded in [`data/README.md`](data/README.md).
 * **Neutral Tone:** Human correction: docs state facts and reasons, without snark or complaints about effort or size. Removed one such line from [`data/README.md`](data/README.md) and reworded one audit entry in section 5.
+* **Full-Text Reread:** Read Kane 2013, RBN 2011/01 and the Concept2 UK shorter guide in full. Kane 2013 tested height as a covariate and found no effect, which the abstract does not mention, so the README's "no study" wording changed. The shorter guide added the Amateur Rowing Association table and junior values. RBN 2011/01 added the boat table.
+* **Wider Source Search:** Searched repositories, author pages and a UCLA archive of 165 rowing papers. The full Concept2 UK guide contains a body-size rule that the shorter version omits, so the README's answer now includes it. Soper & Hume's full text confirmed the audit. World Rowing's 2022 test settings replaced the New Zealand column. No paper in the archive other than Kane 2013 relates drag factor to rower size. No open full text was found for Metikos 2015, Kane 2008, Ingham 2002 or Hahn 2000.

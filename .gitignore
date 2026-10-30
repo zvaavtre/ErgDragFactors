@@ -10,3 +10,6 @@ __pycache__/
 data/*.csv
 data/charts/
 data/crash-b-data.md
+
+# Temporary source downloads: read, cite in docs/references.md, then delete
+references/
