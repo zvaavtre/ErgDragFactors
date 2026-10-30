@@ -13,6 +13,7 @@ When working in or extending `ErgDragFactors`, keep the following conventions an
    - **ALWAYS Verify Sources Are Real & Exact:** Never cite a paper, book, newsletter, or URL from memory. Open the source and confirm the exact title, authors, year, journal, volume/pages, ISBN, PMID/DOI, URL, and the claim itself. Record in [`docs/references.md`](docs/references.md) when only an abstract or public excerpt was read.
    - **No Unsourced Recommendations:** Every drag factor number and every recommendation about behaviour must come from a publication listed in [`docs/references.md`](docs/references.md). Do not invent numbers, adjustments, or advice, and do not derive advice from our own models. If no source says it, say so.
    - **Keep the Docs Short:** State the recommendation and its source. Do not add narrative prose.
+   - **Keep the Tone Neutral:** State facts and reasons. Do not add snark or complaints about effort, size, or cost.
    - **Mathematical & Data Integrity Tests:** Any change to the archived Python in `data/` must keep `data/test_math.py` passing (`make test` in `data/Makefile`).
 
 2. **Core Domain Focus:**

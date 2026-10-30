@@ -133,3 +133,4 @@ We checked the original content against its cited sources and the data. Sources 
 * **Author's Note:** Removed the README's AI;DR advice and the line about tall rowers, because they had no source.
 * **Pipeline Archived:** The race data could not answer the question, so the Python code moved out of the main story. It stays in [`data/`](data/README.md) with a README explaining why. CSVs, charts and the report are no longer tracked.
 * **Height Check:** The last analysis used a per-athlete `statsmodels` regression, with and without power. Its results are recorded in [`data/README.md`](data/README.md).
+* **Neutral Tone:** Human correction: docs state facts and reasons, without snark or complaints about effort or size. Removed one such line from [`data/README.md`](data/README.md) and reworded one audit entry in section 5.
